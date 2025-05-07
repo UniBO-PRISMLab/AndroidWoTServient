@@ -50,8 +50,13 @@ android {
 }
 
 dependencies {
+    // new dependency
+    implementation("org.eclipse.thingweb:kotlin-wot-reflection:0.1.0-SNAPSHOT")
+
     implementation("org.eclipse.thingweb:kotlin-wot:0.1.0-SNAPSHOT")
-    implementation("org.eclipse.thingweb:kotlin-wot-binding-http:0.1.0-SNAPSHOT")
+    implementation("org.eclipse.thingweb:kotlin-wot-binding-http:0.1.0-SNAPSHOT"){
+        exclude(group = "io.ktor", module = "ktor-server-metrics-micrometer")
+    }
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
