@@ -3,9 +3,37 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="24dp"
+    android:padding="16dp"
+    android:gravity="center_horizontal"
     >
 
+    <!-- Spaziatore verticale -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="32dp" />
+
+    <!-- Stato Connessione -->
+    <TextView
+        android:id="@+id/connectionStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="⏳ In Attesa..."
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp"
+        />
+
+    <!-- Progress Bar -->
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:visibility="visible"
+        style="?android:attr/progressBarStyle"
+        android:layout_marginBottom="24dp"
+        />
+
+    <!-- Testo Contatore -->
     <TextView
         android:id="@+id/counterText"
         android:layout_width="match_parent"

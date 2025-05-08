@@ -1,21 +1,16 @@
 package com.example.testserver
 
 import android.os.Bundle
+import android.view.View
 import android.widget.Button
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import java.net.URI
 import kotlinx.coroutines.*
 import org.eclipse.thingweb.Servient
 import org.eclipse.thingweb.Wot
 import org.eclipse.thingweb.binding.http.HttpProtocolClientFactory
 import org.eclipse.thingweb.binding.http.HttpProtocolServer
-import org.eclipse.thingweb.thing.schema.WoTConsumedThing
-import org.eclipse.thingweb.thing.schema.genericReadProperty
-import org.eclipse.thingweb.reflection.ExposedThingBuilder
-import org.eclipse.thingweb.reflection.annotations.Property
-import org.eclipse.thingweb.reflection.annotations.Thing
-import org.eclipse.thingweb.reflection.annotations.Action
 
 class MainActivity : AppCompatActivity() {
 
@@ -36,28 +31,47 @@ class MainActivity : AppCompatActivity() {
         val decreaseButton = findViewById<Button>(R.id.decreaseButton)
         val resetButton = findViewById<Button>(R.id.resetButton)
 
+        // NEW
+        val connectionStatus = findViewById<TextView>(R.id.connectionStatus)
+        val progressBar = findViewById<ProgressBar>(R.id.progressBar)
+
         coroutineScope.launch {
-            // Servient e Client nello stesso servient
-            val servient = Servient(
-                servers = listOf(HttpProtocolServer()),
-                clientFactories = listOf(HttpProtocolClientFactory())
-            )
-            wot = Wot.create(servient)
-            servient.start()
-
-            // Avvia Server
-            val server = CounterServer(wot, servient)
-            server.start()
-
-            // Attendi che Thing sia esposto
-            delay(500)
-
-            // Avvia Client
-            client = CounterClient(wot, tdUrl)
-            client.connect()
-
             withContext(Dispatchers.Main) {
-                counterText.text = "WoT inizializzato"
+                connectionStatus.text = "In connessione..."
+                progressBar.visibility = View.VISIBLE
+            }
+
+            try {
+                // Servient e Client nello stesso servient
+                val servient = Servient(
+                    servers = listOf(HttpProtocolServer()),
+                    clientFactories = listOf(HttpProtocolClientFactory())
+                )
+                wot = Wot.create(servient)
+                servient.start()
+
+                // Avvia Server
+                val server = CounterServer(wot, servient)
+                server.start()
+
+                // Attendi che Thing sia esposto
+                delay(500)
+
+                // Avvia Client
+                client = CounterClient(wot, tdUrl)
+                client.connect()
+
+                val initialValue = client.getCounter()
+                withContext(Dispatchers.Main) {
+                    connectionStatus.text = "✅ Connesso"
+                    progressBar.visibility = View.GONE
+                    counterText.text = "Valore: $initialValue"
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    connectionStatus.text = "❌ Errore: ${e.message}"
+                    progressBar.visibility = View.GONE
+                }
             }
         }
 
