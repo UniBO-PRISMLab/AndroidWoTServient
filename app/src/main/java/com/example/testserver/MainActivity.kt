@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import java.net.URI
 import kotlinx.coroutines.*
 import org.eclipse.thingweb.Servient
 import org.eclipse.thingweb.Wot
@@ -11,7 +12,6 @@ import org.eclipse.thingweb.binding.http.HttpProtocolClientFactory
 import org.eclipse.thingweb.binding.http.HttpProtocolServer
 import org.eclipse.thingweb.thing.schema.WoTConsumedThing
 import org.eclipse.thingweb.thing.schema.genericReadProperty
-import java.net.URI
 import org.eclipse.thingweb.reflection.ExposedThingBuilder
 import org.eclipse.thingweb.reflection.annotations.Property
 import org.eclipse.thingweb.reflection.annotations.Thing
@@ -22,8 +22,8 @@ class MainActivity : AppCompatActivity() {
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private lateinit var wot: Wot
-    private lateinit var counterThingClient: WoTConsumedThing
-    //TODO: usare IP giusto
+    private lateinit var client: CounterClient
+    //TODO: usare IP giusto per parlare anche col PC
     private val tdUrl = "http://localhost:8080/counter"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,21 +45,17 @@ class MainActivity : AppCompatActivity() {
             wot = Wot.create(servient)
             servient.start()
 
-            val counterThing = CounterThing()
-            val exposedThing = ExposedThingBuilder.createExposedThing(wot, counterThing, CounterThing::class)
-            if (exposedThing != null) {
-                servient.addThing(exposedThing)
-            }
-            if (exposedThing != null) {
-                servient.expose(exposedThing.getThingDescription().id)
-            }
+            // Avvia Server
+            val server = CounterServer(wot, servient)
+            server.start()
 
-            // attendi che server sia pronto
+            // Attendi che Thing sia esposto
             delay(500)
 
-            // Consuma
-            val thingDescription = wot.requestThingDescription(URI(tdUrl))
-            counterThingClient = wot.consume(thingDescription)
+            // Avvia Client
+            client = CounterClient(wot, tdUrl)
+            client.connect()
+
             withContext(Dispatchers.Main) {
                 counterText.text = "WoT inizializzato"
             }
@@ -67,7 +63,7 @@ class MainActivity : AppCompatActivity() {
 
         refreshButton.setOnClickListener {
             coroutineScope.launch {
-                val value = counterThingClient.genericReadProperty<Int>("counter")
+                val value = client.getCounter()
                 withContext(Dispatchers.Main) {
                     counterText.text = "Valore: $value"
                 }
@@ -76,8 +72,8 @@ class MainActivity : AppCompatActivity() {
 
         incrementButton.setOnClickListener {
             coroutineScope.launch {
-                counterThingClient.invokeAction("increase")
-                val value = counterThingClient.genericReadProperty<Int>("counter")
+                client.increase()
+                val value = client.getCounter()
                 withContext(Dispatchers.Main) {
                     counterText.text = "Valore: $value"
                 }
@@ -86,8 +82,8 @@ class MainActivity : AppCompatActivity() {
 
         decreaseButton.setOnClickListener {
             coroutineScope.launch {
-                counterThingClient.invokeAction("decrease")
-                val value = counterThingClient.genericReadProperty<Int>("counter")
+                client.decrease()
+                val value = client.getCounter()
                 withContext(Dispatchers.Main) {
                     counterText.text = "Valore: $value"
                 }
@@ -96,8 +92,8 @@ class MainActivity : AppCompatActivity() {
 
         resetButton.setOnClickListener {
             coroutineScope.launch {
-                counterThingClient.invokeAction("reset")
-                val value = counterThingClient.genericReadProperty<Int>("counter")
+                client.reset()
+                val value = client.getCounter()
                 withContext(Dispatchers.Main) {
                     counterText.text = "Valore: $value"
                 }
@@ -110,33 +106,4 @@ class MainActivity : AppCompatActivity() {
         coroutineScope.cancel() // pulizia delle coroutine
     }
 
-    @Thing(id = "counter", title = "Counter Thing", description = "A simple Counter")
-    class CounterThing {
-        @Property(title = "counter", readOnly = true)
-        var counter: Int = 0
-
-        @Action(
-            title = "Increase Counter",
-            description = "Increase Counter by 1"
-        )
-        fun increase() {
-            counter++
-        }
-
-        @Action(
-            title = "Decrease Counter",
-            description = "Decrease Counter by 1"
-        )
-        fun decrease() {
-            counter--
-        }
-
-        @Action(
-            title = "Reset Counter",
-            description = "Reset Counter to 0"
-        )
-        fun reset() {
-            counter = 0
-        }
-    }
 }
