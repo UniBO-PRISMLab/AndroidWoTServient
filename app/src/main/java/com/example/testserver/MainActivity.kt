@@ -1,5 +1,6 @@
 package com.example.testserver
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
@@ -17,9 +18,11 @@ class MainActivity : AppCompatActivity() {
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private lateinit var wot: Wot
-    private lateinit var client: CounterClient
+    private lateinit var counterClient: CounterClient
+    private lateinit var sensorClient: SensorClient
     //TODO: usare IP giusto per parlare anche col PC
-    private val tdUrl = "http://localhost:8080/counter"
+    private val counterTdUrl = "http://localhost:8080/counter"
+    private val sensorTdUrl = "http://localhost:8080/sensor"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,10 +33,12 @@ class MainActivity : AppCompatActivity() {
         val incrementButton = findViewById<Button>(R.id.incrementButton)
         val decreaseButton = findViewById<Button>(R.id.decreaseButton)
         val resetButton = findViewById<Button>(R.id.resetButton)
-
-        // NEW
         val connectionStatus = findViewById<TextView>(R.id.connectionStatus)
         val progressBar = findViewById<ProgressBar>(R.id.progressBar)
+
+        val sensorText = findViewById<TextView>(R.id.sensorValueText2)
+        // per ora l'ho tolto
+        // val refreshSensorButton = findViewById<Button>(R.id.refreshSensorBtn2)
 
         coroutineScope.launch {
             withContext(Dispatchers.Main) {
@@ -51,21 +56,26 @@ class MainActivity : AppCompatActivity() {
                 servient.start()
 
                 // Avvia Server
-                val server = CounterServer(wot, servient)
+                val server = Server(wot, servient)
                 server.start()
 
                 // Attendi che Thing sia esposto
                 delay(500)
 
                 // Avvia Client
-                client = CounterClient(wot, tdUrl)
-                client.connect()
+                counterClient = CounterClient(wot, counterTdUrl)
+                counterClient.connect()
 
-                val initialValue = client.getCounter()
+                sensorClient = SensorClient(wot, sensorTdUrl)
+                sensorClient.connect()
+
+                // Leggi valori iniziali
+                updateValues(counterText, sensorText)
+
+                // Aggiorna TextView con connessione riuscita
                 withContext(Dispatchers.Main) {
-                    connectionStatus.text = "✅ Connesso"
+                    connectionStatus.text = "Connesso!"
                     progressBar.visibility = View.GONE
-                    counterText.text = "Valore: $initialValue"
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -77,17 +87,14 @@ class MainActivity : AppCompatActivity() {
 
         refreshButton.setOnClickListener {
             coroutineScope.launch {
-                val value = client.getCounter()
-                withContext(Dispatchers.Main) {
-                    counterText.text = "Valore: $value"
-                }
+                updateValues(counterText, sensorText)
             }
         }
 
         incrementButton.setOnClickListener {
             coroutineScope.launch {
-                client.increase()
-                val value = client.getCounter()
+                counterClient.increase()
+                val value = counterClient.getCounter()
                 withContext(Dispatchers.Main) {
                     counterText.text = "Valore: $value"
                 }
@@ -96,8 +103,8 @@ class MainActivity : AppCompatActivity() {
 
         decreaseButton.setOnClickListener {
             coroutineScope.launch {
-                client.decrease()
-                val value = client.getCounter()
+                counterClient.decrease()
+                val value = counterClient.getCounter()
                 withContext(Dispatchers.Main) {
                     counterText.text = "Valore: $value"
                 }
@@ -106,12 +113,24 @@ class MainActivity : AppCompatActivity() {
 
         resetButton.setOnClickListener {
             coroutineScope.launch {
-                client.reset()
-                val value = client.getCounter()
+                counterClient.reset()
+                val value = counterClient.getCounter()
                 withContext(Dispatchers.Main) {
                     counterText.text = "Valore: $value"
                 }
             }
+        }
+
+
+    }
+
+    private suspend fun updateValues(counterText: TextView?, sensorText: TextView?) {
+        val counter = counterClient.getCounter()
+        val sensor = sensorClient.getSensorValue()
+
+        withContext(Dispatchers.Main) {
+            counterText?.text = "Counter: $counter"
+            sensorText?.text = "Luminosità: $sensor lux"
         }
     }
 
@@ -119,5 +138,4 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         coroutineScope.cancel() // pulizia delle coroutine
     }
-
 }

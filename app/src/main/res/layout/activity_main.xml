@@ -48,8 +48,7 @@
         android:id="@+id/refreshButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Aggiorna Counter!"
-        />
+        android:text="Aggiorna Valori!" />
 
     <Button
         android:id="@+id/incrementButton"
@@ -74,5 +73,17 @@
         android:text="Reset"
         android:layout_marginTop="16dp"
         />
+
+    <Button
+        android:id="@+id/goToSensorBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Sensori" />
+
+    <TextView
+        android:id="@+id/sensorValueText2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Luminosità: --" />
 
 </LinearLayout>
