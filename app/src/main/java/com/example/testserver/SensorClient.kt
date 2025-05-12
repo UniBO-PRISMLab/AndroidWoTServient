@@ -17,7 +17,6 @@ class SensorClient(
     }
 
     suspend fun getSensorValue(): Int {
-        thing.invokeAction("refresh")
         return thing.genericReadProperty("sensorValue")
     }
 }

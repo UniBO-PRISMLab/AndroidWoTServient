@@ -56,7 +56,7 @@ class MainActivity : AppCompatActivity() {
                 servient.start()
 
                 // Avvia Server
-                val server = Server(wot, servient)
+                val server = Server(wot, servient, this@MainActivity)
                 server.start()
 
                 // Attendi che Thing sia esposto
