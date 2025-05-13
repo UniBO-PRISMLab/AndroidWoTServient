@@ -36,9 +36,7 @@ class MainActivity : AppCompatActivity() {
         val connectionStatus = findViewById<TextView>(R.id.connectionStatus)
         val progressBar = findViewById<ProgressBar>(R.id.progressBar)
 
-        val sensorText = findViewById<TextView>(R.id.sensorValueText2)
-        // per ora l'ho tolto
-        // val refreshSensorButton = findViewById<Button>(R.id.refreshSensorBtn2)
+        val sensorText = findViewById<TextView>(R.id.sensorValueText)
 
         coroutineScope.launch {
             withContext(Dispatchers.Main) {

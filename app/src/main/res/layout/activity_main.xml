@@ -74,14 +74,8 @@
         android:layout_marginTop="16dp"
         />
 
-    <Button
-        android:id="@+id/goToSensorBtn"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Sensori" />
-
     <TextView
-        android:id="@+id/sensorValueText2"
+        android:id="@+id/sensorValueText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Luminosità: --" />
