@@ -5,7 +5,7 @@ import org.eclipse.thingweb.thing.schema.WoTConsumedThing
 import org.eclipse.thingweb.thing.schema.genericReadProperty
 import java.net.URI
 
-class SensorClient(
+class MagnetometerClient(
     private val wot: Wot,
     private val tdUrl: String
 ) {
@@ -16,7 +16,10 @@ class SensorClient(
         thing = wot.consume(td)
     }
 
-    suspend fun getSensorValue(): Int {
-        return thing.genericReadProperty("sensorValue")
+    suspend fun getMagneticField(): Triple<Float, Float, Float> {
+        val x = thing.genericReadProperty<Float>("magneticFieldX")
+        val y = thing.genericReadProperty<Float>("magneticFieldY")
+        val z = thing.genericReadProperty<Float>("magneticFieldZ")
+        return Triple(x, y, z)
     }
 }

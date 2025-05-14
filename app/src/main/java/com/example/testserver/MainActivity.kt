@@ -16,13 +16,20 @@ import org.eclipse.thingweb.binding.http.HttpProtocolServer
 class MainActivity : AppCompatActivity() {
 
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
     private lateinit var wot: Wot
+
+    // Client
     private lateinit var counterClient: CounterClient
-    private lateinit var sensorClient: SensorClient
-    //TODO: usare IP giusto per parlare anche col PC
+    private lateinit var lightSensorClient: LightSensorClient
+    private lateinit var pressureSensorClient: PressureSensorClient
+    private lateinit var magnetometerClient: MagnetometerClient
+
+    // Url
+    //TODO: cambiare localhost per parlare anche col PC
     private val counterTdUrl = "http://localhost:8080/counter"
-    private val sensorTdUrl = "http://localhost:8080/sensor"
+    private val lightSensorTdUrl = "http://localhost:8080/light-sensor"
+    private val pressureSensorTdUrl = "http://localhost:8080/pressure-sensor"
+    private val magnetometerTdUrl = "http://localhost:8080/magnetometer-sensor"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,8 +42,12 @@ class MainActivity : AppCompatActivity() {
         val resetButton = findViewById<Button>(R.id.resetButton)
         val connectionStatus = findViewById<TextView>(R.id.connectionStatus)
         val progressBar = findViewById<ProgressBar>(R.id.progressBar)
+        val lightSensorText = findViewById<TextView>(R.id.sensorValueText)
+        val pressureText = findViewById<TextView>(R.id.pressureValueText)
+        val magnetometerText = findViewById<TextView>(R.id.sensorMagnetoText)
 
-        val sensorText = findViewById<TextView>(R.id.sensorValueText)
+        // Lista Sensori
+        val sensorListButton: Button = findViewById(R.id.sensorListButton)
 
         coroutineScope.launch {
             withContext(Dispatchers.Main) {
@@ -60,15 +71,18 @@ class MainActivity : AppCompatActivity() {
                 // Attendi che Thing sia esposto
                 delay(500)
 
-                // Avvia Client
+                // Avvia i client
                 counterClient = CounterClient(wot, counterTdUrl)
                 counterClient.connect()
-
-                sensorClient = SensorClient(wot, sensorTdUrl)
-                sensorClient.connect()
+                lightSensorClient = LightSensorClient(wot, lightSensorTdUrl)
+                lightSensorClient.connect()
+                pressureSensorClient = PressureSensorClient(wot, pressureSensorTdUrl)
+                pressureSensorClient.connect()
+                magnetometerClient = MagnetometerClient(wot, magnetometerTdUrl)
+                magnetometerClient.connect()
 
                 // Leggi valori iniziali
-                updateValues(counterText, sensorText)
+                updateValues(counterText, lightSensorText, pressureText, magnetometerText)
 
                 // Aggiorna TextView con connessione riuscita
                 withContext(Dispatchers.Main) {
@@ -85,7 +99,7 @@ class MainActivity : AppCompatActivity() {
 
         refreshButton.setOnClickListener {
             coroutineScope.launch {
-                updateValues(counterText, sensorText)
+                updateValues(counterText, lightSensorText, pressureText, magnetometerText)
             }
         }
 
@@ -119,21 +133,32 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-
+        sensorListButton.setOnClickListener {
+            val intent = Intent(this, SensorListActivity::class.java)
+            startActivity(intent)
+        }
     }
 
-    private suspend fun updateValues(counterText: TextView?, sensorText: TextView?) {
+    private suspend fun updateValues(
+        counterText: TextView?,
+        lightSensorText: TextView?,
+        pressureText: TextView?,
+        magnetometerText: TextView?) {
         val counter = counterClient.getCounter()
-        val sensor = sensorClient.getSensorValue()
+        val lightSensor = lightSensorClient.getLightLevel()
+        val pressure = pressureSensorClient.getPressure()
+        val magneticField = magnetometerClient.getMagneticField()
 
         withContext(Dispatchers.Main) {
             counterText?.text = "Counter: $counter"
-            sensorText?.text = "Luminosità: $sensor lux"
+            lightSensorText?.text = "Luminosità: $lightSensor lux"
+            pressureText?.text = "Pressione: $pressure hPa"
+            magnetometerText?.text = "Campo magnetico: \nX: ${magneticField.first} µT\nY: ${magneticField.second} µT\nZ: ${magneticField.third} µT\n"
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        coroutineScope.cancel() // pulizia delle coroutine
+        coroutineScope.cancel() // Pulizia delle Coroutine
     }
 }

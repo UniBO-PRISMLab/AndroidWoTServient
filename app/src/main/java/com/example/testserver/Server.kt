@@ -23,13 +23,31 @@ class Server(
             exposedThings.add(exposedCounter)
         }
 
-        // Sensor
-        val sensorThing = SensorThing(context)
-        val exposedSensor = ExposedThingBuilder.createExposedThing(wot, sensorThing, SensorThing::class)
-        if(exposedSensor != null) {
-            servient.addThing(exposedSensor)
-            servient.expose(exposedSensor.getThingDescription().id)
-            exposedThings.add(exposedSensor)
+        // Light Sensor
+        val lightSensorThing = LightSensorThing(context)
+        val exposedLightSensor = ExposedThingBuilder.createExposedThing(wot, lightSensorThing, LightSensorThing::class)
+        if(exposedLightSensor != null) {
+            servient.addThing(exposedLightSensor)
+            servient.expose(exposedLightSensor.getThingDescription().id)
+            exposedThings.add(exposedLightSensor)
+        }
+
+        // Pressure Sensor -- NON ESISTE SUL DISPOSITIVO -- RIMUOVERE
+        val pressureSensorThing = PressureSensorThing(context)
+        val exposedPressureSensor = ExposedThingBuilder.createExposedThing(wot, pressureSensorThing, PressureSensorThing::class)
+        if(exposedPressureSensor != null) {
+            servient.addThing(exposedPressureSensor)
+            servient.expose(exposedPressureSensor.getThingDescription().id)
+            exposedThings.add(exposedPressureSensor)
+        }
+
+        // Magnetometer
+        val magnetometerThing = MagnetometerThing(context)
+        val exposedMagnetometer = ExposedThingBuilder.createExposedThing(wot, magnetometerThing, MagnetometerThing::class)
+        if(exposedMagnetometer != null) {
+            servient.addThing(exposedMagnetometer)
+            servient.expose(exposedMagnetometer.getThingDescription().id)
+            exposedThings.add(exposedMagnetometer)
         }
 
         return exposedThings

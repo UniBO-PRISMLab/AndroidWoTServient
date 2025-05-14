@@ -74,10 +74,28 @@
         android:layout_marginTop="16dp"
         />
 
+    <Button
+        android:id="@+id/sensorListButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Sensori sul Dispositivo" />
+
     <TextView
         android:id="@+id/sensorValueText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Luminosità: --" />
+
+    <TextView
+        android:id="@+id/pressureValueText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Pressione: --" />
+
+    <TextView
+        android:id="@+id/sensorMagnetoText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Campo Magnetico: --" />
 
 </LinearLayout>

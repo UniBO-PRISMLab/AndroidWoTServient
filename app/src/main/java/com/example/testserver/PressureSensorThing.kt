@@ -5,48 +5,49 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.util.Log
 import org.eclipse.thingweb.reflection.annotations.Action
 import org.eclipse.thingweb.reflection.annotations.Property
 import org.eclipse.thingweb.reflection.annotations.Thing
-import kotlin.random.Random
 
 @Thing(
-    id = "sensor",
-    title = "Sensor Thing",
-    description = "A Thing to expose a phone sensor"
+    id = "pressure-sensor",
+    title = "Pressure Sensor Thing",
+    description = "A Thing to expose the phone's barometric pressure sensor"
 )
-class SensorThing(context: Context) : SensorEventListener {
+class PressureSensorThing(context: Context) : SensorEventListener {
     @Property(
-        title = "Sensor Value",
-        description = "Current sensor reading",
+        title = "Pressure",
+        description = "Current atmospheric pressure in hPa",
         readOnly = true
     )
-    var sensorValue: Float = 0f
+    var pressureValue: Float = 0f
 
     private val sensorManager: SensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-    private val lightSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
+    private val pressureSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE)
 
     init {
-        lightSensor?.let {
+        val hasPressure = pressureSensor != null
+        Log.d("SENSOR", "Pressure sensor available: $hasPressure")
+        pressureSensor?.let {
             sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
         }
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
-        if(event?.sensor?.type == Sensor.TYPE_LIGHT) {
-            sensorValue = event.values[0]
+        if(event?.sensor?.type == Sensor.TYPE_PRESSURE) {
+            pressureValue = event.values[0]
         }
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
     @Action(
-        title = "Refresh sensor",
-        description = "Manually refresh sensor value"
+        title = "Refresh pressure",
+        description = "Manually refresh pressure value"
     )
     fun refresh() {
-        // Simulazione refresh, in pratica sarà settato da Android
-        // sensorValue = Random.nextInt(0, 1001).toFloat()
+        // Si aggiorna da solo, non serve implementare la funzione
     }
 
     fun cleanup() {
