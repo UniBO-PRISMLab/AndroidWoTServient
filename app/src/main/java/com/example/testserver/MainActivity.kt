@@ -1,6 +1,8 @@
 package com.example.testserver
 
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
@@ -49,6 +51,17 @@ class MainActivity : AppCompatActivity() {
         // Lista Sensori
         val sensorListButton: Button = findViewById(R.id.sensorListButton)
 
+        // TODO: NEW
+        // Prima di avviare foreground service devo chiedere permesso per notifica
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if(checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1)
+            }
+        }
+        // Avvia foreground service
+        val serviceIntent = Intent(this, WoTService::class.java)
+        startForegroundService(serviceIntent)
+
         coroutineScope.launch {
             withContext(Dispatchers.Main) {
                 connectionStatus.text = "In connessione..."
@@ -56,22 +69,11 @@ class MainActivity : AppCompatActivity() {
             }
 
             try {
-                // Servient e Client nello stesso servient
-                val servient = Servient(
-                    servers = listOf(HttpProtocolServer()),
-                    clientFactories = listOf(HttpProtocolClientFactory())
-                )
-                wot = Wot.create(servient)
-                servient.start()
-
-                // Avvia Server
-                val server = Server(wot, servient, this@MainActivity)
-                server.start()
-
-                // Attendi che Thing sia esposto
-                delay(500)
+                // Attendi che Server sia attivo
+                delay(1000)
 
                 // Avvia i client
+                val wot = WoTClientHolder.wot!!
                 counterClient = CounterClient(wot, counterTdUrl)
                 counterClient.connect()
                 lightSensorClient = LightSensorClient(wot, lightSensorTdUrl)
