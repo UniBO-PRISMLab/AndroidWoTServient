@@ -33,46 +33,11 @@
         android:layout_marginBottom="24dp"
         />
 
-    <!-- Testo Contatore -->
-    <TextView
-        android:id="@+id/counterText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Counter non caricato!"
-        android:textSize="24sp"
-        android:gravity="center"
-        android:layout_marginBottom="16dp"
-        />
-
     <Button
-        android:id="@+id/refreshButton"
+        android:id="@+id/sensorDataButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Aggiorna Valori!" />
-
-    <Button
-        android:id="@+id/incrementButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Incrementa!"
-        android:layout_marginTop="12dp"
-        />
-
-    <Button
-        android:id="@+id/decreaseButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Decrementa"
-        android:layout_marginTop="16dp"
-        />
-
-    <Button
-        android:id="@+id/resetButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Reset"
-        android:layout_marginTop="16dp"
-        />
+        android:text="Vai a Dati" />
 
     <Button
         android:id="@+id/sensorListButton"
@@ -80,22 +45,17 @@
         android:layout_height="wrap_content"
         android:text="Sensori sul Dispositivo" />
 
-    <TextView
-        android:id="@+id/sensorValueText"
+    <Button
+        android:id="@+id/repeaterButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Luminosità: --" />
+        android:text="Connettiti a un Ripetitore"
+        android:enabled="false" />
 
-    <TextView
-        android:id="@+id/pressureValueText"
+    <Button
+        android:id="@+id/picAudioButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Pressione: --" />
-
-    <TextView
-        android:id="@+id/sensorMagnetoText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Campo Magnetico: --" />
+        android:text="Invia Foto/Audio" />
 
 </LinearLayout>

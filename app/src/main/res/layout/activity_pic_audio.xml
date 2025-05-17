@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp" >
+
+    <ImageView
+        android:id="@+id/imageView"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:scaleType="centerCrop"
+        android:background="@android:color/darker_gray" />
+
+    <Button
+        android:id="@+id/takePictureButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Scatta Foto"/>
+
+    <Button
+        android:id="@+id/recordAudioButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Registra Audio" />
+
+    <Button
+        android:id="@+id/stopRecordingButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Ferma Registrazione" />
+
+    <Button
+        android:id="@+id/sendButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Invia" />
+
+</LinearLayout>
