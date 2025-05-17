@@ -31,6 +31,12 @@
         android:text="Ferma Registrazione" />
 
     <Button
+        android:id="@+id/playAudioButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Riproduci Audio" />
+
+    <Button
         android:id="@+id/sendButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
