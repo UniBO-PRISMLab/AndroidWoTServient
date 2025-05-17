@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.ComponentCaller
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Bundle
@@ -26,6 +27,7 @@ class PicAudioActivity : AppCompatActivity() {
     private lateinit var recordAudioButton: Button
     private lateinit var stopRecordingButton: Button
     private lateinit var playAudioButton: Button
+    private var mediaPlayer: MediaPlayer? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,6 +46,7 @@ class PicAudioActivity : AppCompatActivity() {
         takePictureButton.setOnClickListener { checkCameraPermission() }
         recordAudioButton.setOnClickListener { checkAudioPermission() }
         stopRecordingButton.setOnClickListener { stopRecording() }
+        playAudioButton.setOnClickListener { playRecording() }
         sendButton.setOnClickListener { sendMedia() }
     }
 
@@ -115,6 +118,21 @@ class PicAudioActivity : AppCompatActivity() {
         playAudioButton.isEnabled = true
     }
 
+    private fun playRecording() {
+        audioPath?.let {
+            mediaPlayer = MediaPlayer().apply {
+                setDataSource(it)
+                prepare()
+                start()
+            }
+            mediaPlayer?.setOnCompletionListener {
+                Toast.makeText(this, "Riproduzione terminata", Toast.LENGTH_SHORT).show()
+            } ?: run {
+                Toast.makeText(this, "Nessuna registrazione trovata", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private fun sendMedia() {
         //TODO: usa WoT per inviare
         Toast.makeText(this, "Invio Media (TODO)", Toast.LENGTH_SHORT).show()
@@ -147,5 +165,11 @@ class PicAudioActivity : AppCompatActivity() {
 
     companion object {
         const val REQUEST_IMAGE_CAPTURE = 1
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        mediaRecorder?.release()
+        mediaPlayer?.release()
     }
 }

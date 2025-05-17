@@ -57,10 +57,19 @@ class WoTService : Service() {
             getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
         }
 
+        val stopIntent = Intent(this, WoTService::class.java).apply {
+            action = "STOP_SERVICE"
+        }
+        val stopPendingIntent = PendingIntent.getService(
+            this, 0, stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         return NotificationCompat.Builder(this, channelId)
             .setContentTitle("Server WoT attivo")
             .setContentText("Il server è in esecuzione")
             .setSmallIcon(R.mipmap.ic_launcher_foreground)
+            .addAction(R.drawable.ic_launcher_background, "Stop", stopPendingIntent)
             .build()
     }
 
@@ -70,4 +79,14 @@ class WoTService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if(intent?.action == "STOP_SERVICE") {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        return START_STICKY
+    }
 }
