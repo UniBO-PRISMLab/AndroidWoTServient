@@ -58,4 +58,10 @@
         android:layout_height="wrap_content"
         android:text="Invia Foto/Audio" />
 
+    <Button
+        android:id="@+id/shareSensorsButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Selezione Sensori da Condividere" />
+
 </LinearLayout>
