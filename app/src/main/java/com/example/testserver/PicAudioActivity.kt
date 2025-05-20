@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.ComponentCaller
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.net.Uri
@@ -15,11 +16,13 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import java.io.File
+import java.io.FileOutputStream
 
 class PicAudioActivity : AppCompatActivity() {
 
     private lateinit var imageView: ImageView
-    private var imageUri: Uri? = null
+    // private var imageUri: Uri? = null
     private var audioPath: String? = null
     private var mediaRecorder: MediaRecorder? = null
     private val CAMERA_REQUEST_CODE = 100
@@ -71,8 +74,24 @@ class PicAudioActivity : AppCompatActivity() {
         super.onActivityResult(requestCode, resultCode, data)
         if(requestCode == REQUEST_IMAGE_CAPTURE && resultCode == Activity.RESULT_OK) {
             val bitmap = data?.extras?.get("data") as? android.graphics.Bitmap
-            imageView.setImageBitmap(bitmap)
-            // Salvare bitmap su file per inviarlo
+            if (bitmap != null){
+                imageView.setImageBitmap(bitmap)
+                savePhotoToFile(bitmap)
+            }
+        }
+    }
+
+    private fun savePhotoToFile(bitmap: Bitmap) {
+        val photoFile = File(externalCacheDir, "photo.jpg")
+        try {
+            FileOutputStream(photoFile).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, out)
+            }
+            Toast.makeText(this, "Foto salvata", Toast.LENGTH_SHORT).show()
+            // aggiorna Thing
+            MediaThings.photoThing?.refresh()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Errore in salvataggio foto", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -116,6 +135,8 @@ class PicAudioActivity : AppCompatActivity() {
         recordAudioButton.isEnabled = true
         stopRecordingButton.isEnabled = false
         playAudioButton.isEnabled = true
+
+        MediaThings.audioThing?.refresh()
     }
 
     private fun playRecording() {
@@ -134,8 +155,10 @@ class PicAudioActivity : AppCompatActivity() {
     }
 
     private fun sendMedia() {
+        MediaThings.photoThing?.refresh()
+        MediaThings.audioThing?.refresh()
         //TODO: usa WoT per inviare
-        Toast.makeText(this, "Invio Media (TODO)", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Media inviati a server WoT", Toast.LENGTH_SHORT).show()
     }
 
     override fun onRequestPermissionsResult(
