@@ -1,7 +1,9 @@
 package com.example.testserver
 
 import android.os.Bundle
+import android.view.View
 import android.widget.Button
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.coroutines.CoroutineScope
@@ -23,6 +25,10 @@ class SensorDataActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_sensor_data)
 
+        // Stato connessione
+        val connectionStatus = findViewById<TextView>(R.id.connectionStatus)
+        val progressBar = findViewById<ProgressBar>(R.id.progressBar)
+
         val counterText = findViewById<TextView>(R.id.counterText)
         val lightSensorText = findViewById<TextView>(R.id.sensorValueText)
         val pressureText = findViewById<TextView>(R.id.pressureValueText)
@@ -34,18 +40,36 @@ class SensorDataActivity : AppCompatActivity() {
         val resetButton = findViewById<Button>(R.id.resetButton)
 
         coroutineScope.launch {
-            val wot = WoTClientHolder.wot!!
-            counterClient = CounterClient(wot, "http://localhost:8080/counter")
-            lightSensorClient = LightSensorClient(wot, "http://localhost:8080/light-sensor")
-            pressureSensorClient = PressureSensorClient(wot, "http://localhost:8080/pressure-sensor")
-            magnetometerClient = MagnetometerClient(wot, "http://localhost:8080/magnetometer-sensor")
+            withContext(Dispatchers.Main) {
+                connectionStatus.text = "In connessione.."
+                progressBar.visibility = View.VISIBLE
+            }
+            try {
+                val wot = WoTClientHolder.wot!!
+                counterClient = CounterClient(wot, "http://localhost:8080/counter")
+                lightSensorClient = LightSensorClient(wot, "http://localhost:8080/light-sensor")
+                pressureSensorClient =
+                    PressureSensorClient(wot, "http://localhost:8080/pressure-sensor")
+                magnetometerClient =
+                    MagnetometerClient(wot, "http://localhost:8080/magnetometer-sensor")
 
-            counterClient.connect()
-            lightSensorClient.connect()
-            pressureSensorClient.connect()
-            magnetometerClient.connect()
+                counterClient.connect()
+                lightSensorClient.connect()
+                pressureSensorClient.connect()
+                magnetometerClient.connect()
 
-            updateValues(counterText, lightSensorText, pressureText, magnetometerText)
+                withContext(Dispatchers.Main) {
+                    connectionStatus.text = "Connesso!"
+                    progressBar.visibility = View.GONE
+                }
+
+                updateValues(counterText, lightSensorText, pressureText, magnetometerText)
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    connectionStatus.text = "Errore di connessione!"
+                    progressBar.visibility = View.GONE
+                }
+            }
         }
 
         refreshButton.setOnClickListener {

@@ -19,10 +19,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Stato connessione
-        val connectionStatus = findViewById<TextView>(R.id.connectionStatus)
-        val progressBar = findViewById<ProgressBar>(R.id.progressBar)
-
         // Bottoni
         val sensorListButton: Button = findViewById(R.id.sensorListButton)
         val sensorDataButton: Button = findViewById(R.id.sensorDataButton)
@@ -40,21 +36,6 @@ class MainActivity : AppCompatActivity() {
         // Avvia foreground service
         val serviceIntent = Intent(this, WoTService::class.java)
         startForegroundService(serviceIntent)
-
-        coroutineScope.launch {
-            withContext(Dispatchers.Main) {
-                connectionStatus.text = "In connessione..."
-                progressBar.visibility = View.VISIBLE
-            }
-
-            // Fingi attesa connessione?
-            delay(1500)
-            withContext(Dispatchers.Main) {
-                connectionStatus.text = "Connesso!"
-                progressBar.visibility = View.GONE
-                sensorDataButton.isEnabled = true
-            }
-        }
 
         sensorListButton.setOnClickListener {
             startActivity(Intent(this, SensorListActivity::class.java))
