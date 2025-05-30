@@ -15,7 +15,21 @@ class GenericSensorClient(
         thing = wot.consume(wot.requestThingDescription(URI(url)))
     }
 
-    suspend fun getSensorValue(property: String): Any? {
-        return thing.genericReadProperty(property)
+    /*
+    // TODO Per funzionare singolo aggiungere property: String
+    suspend fun getSensorValue(): Any? {
+        return thing.genericReadProperty("value")
+    }*/
+
+    suspend fun getProperty(propertyName: String): Any? {
+        return thing.genericReadProperty(propertyName)
+    }
+
+    suspend fun getAllProperties(): Map<String, Any?> {
+        val result = mutableMapOf<String, Any?>()
+        for ((name, _) in thing.properties) {
+            result[name] = thing.genericReadProperty(name)
+        }
+        return result
     }
 }

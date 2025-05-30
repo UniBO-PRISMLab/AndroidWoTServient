@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.0"
 }
 
 android {
@@ -50,9 +51,10 @@ android {
 }
 
 dependencies {
-    // new dependency
-    implementation("org.eclipse.thingweb:kotlin-wot-reflection:0.1.0-SNAPSHOT")
 
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+
+    implementation("org.eclipse.thingweb:kotlin-wot-reflection:0.1.0-SNAPSHOT")
     implementation("org.eclipse.thingweb:kotlin-wot:0.1.0-SNAPSHOT")
     implementation("org.eclipse.thingweb:kotlin-wot-binding-http:0.1.0-SNAPSHOT"){
         exclude(group = "io.ktor", module = "ktor-server-metrics-micrometer")
@@ -61,7 +63,6 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 
-    //chatgpt depndencies
     // Ktor client necessario internamente da kotlin-wot
     implementation("io.ktor:ktor-client-core:2.3.4")
     implementation("io.ktor:ktor-client-cio:2.3.4")

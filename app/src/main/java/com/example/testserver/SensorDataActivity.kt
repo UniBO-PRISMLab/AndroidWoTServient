@@ -18,6 +18,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/* TODO: OLD
 class SensorDataActivity : AppCompatActivity() {
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private lateinit var client: GenericSensorClient
@@ -82,8 +83,8 @@ class SensorDataActivity : AppCompatActivity() {
         coroutineScope.cancel()
     }
 }
+*/
 
-/*
 class SensorDataActivity : AppCompatActivity() {
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -117,17 +118,28 @@ class SensorDataActivity : AppCompatActivity() {
                     val thingId = sanitizeSensorName(sensor.name)
                     val url = "http://localhost:8080/sensor-$thingId"
                     val client = GenericSensorClient(wot, url)
-                    client.connect()
-                    sensorClients[thingId] = client
+                    try {
+                        client.connect()
+                        sensorClients[thingId] = client
 
-                    withContext(Dispatchers.Main) {
-                        val textView = TextView(this@SensorDataActivity).apply {
-                            textSize = 16f
-                            text = "${sensor.name}: caricamento... "
-                            setPadding(8, 16, 8, 16)
+                        withContext(Dispatchers.Main) {
+                            val textView = TextView(this@SensorDataActivity).apply {
+                                textSize = 16f
+                                text = "${sensor.name}: caricamento... "
+                                setPadding(8, 16, 8, 16)
+                            }
+                            sensorViews[thingId] = textView
+                            sensorDataContainer.addView(textView)
                         }
-                        sensorViews[thingId] = textView
-                        sensorDataContainer.addView(textView)
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            val textView = TextView(this@SensorDataActivity).apply {
+                                textSize = 16f
+                                text = "${sensor.name}: errore di connessione"
+                                setPadding(8, 16, 8, 16)
+                            }
+                            sensorDataContainer.addView(textView)
+                        }
                     }
                 }
 
@@ -180,4 +192,3 @@ class SensorDataActivity : AppCompatActivity() {
         coroutineScope.cancel()
     }
 }
-*/
