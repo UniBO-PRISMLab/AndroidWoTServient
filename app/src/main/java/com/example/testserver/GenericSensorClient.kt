@@ -15,7 +15,7 @@ class GenericSensorClient(
         thing = wot.consume(wot.requestThingDescription(URI(url)))
     }
 
-    suspend fun getSensorValue(): Any? {
-        return thing.genericReadProperty("value")
+    suspend fun getSensorValue(property: String): Any? {
+        return thing.genericReadProperty(property)
     }
 }
