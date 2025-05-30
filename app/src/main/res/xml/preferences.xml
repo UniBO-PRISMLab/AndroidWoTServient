@@ -1,0 +1,39 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Sezione Sensori -->
+    <PreferenceCategory android:title="Sensori attivi">
+        <SwitchPreferenceCompat
+            android:key="enable_light_sensor"
+            android:title="Sensore di luce"
+            android:defaultValue="true" />
+        <SwitchPreferenceCompat
+            android:key="enable_pressure_sensor"
+            android:title="Sensore di pressione"
+            android:defaultValue="true" />
+        <SwitchPreferenceCompat
+            android:key="enable_magnetometer"
+            android:title="Magnetometro"
+            android:defaultValue="true" />
+    </PreferenceCategory>
+
+    <!-- Parametri servient -->
+    <PreferenceCategory android:title="Servient">
+        <EditTextPreference
+            android:key="servient_port"
+            android:title="Porta HTTP"
+            android:inputType="number"
+            android:defaultValue="8080" />
+        <EditTextPreference
+            android:key="servient_hostname"
+            android:title="Hostname"
+            android:defaultValue="localhost" />
+    </PreferenceCategory>
+
+    <!-- Frequenza di aggiornamento -->
+    <PreferenceCategory android:title="Frequenza aggiornamento">
+        <ListPreference
+            android:key="update_frequency"
+            android:title="Aggiorna ogni..."
+            android:entries="@array/frequency_labels"
+            android:defaultValue="1000" />
+    </PreferenceCategory>
+</PreferenceScreen>

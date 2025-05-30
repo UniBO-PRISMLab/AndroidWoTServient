@@ -44,4 +44,16 @@
         android:layout_height="wrap_content"
         android:text="Selezione Sensori da Condividere" />
 
+    <Button
+        android:id="@+id/statsButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Statistiche" />
+
+    <Button
+        android:id="@+id/settingsButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Impostazioni" />
+
 </LinearLayout>

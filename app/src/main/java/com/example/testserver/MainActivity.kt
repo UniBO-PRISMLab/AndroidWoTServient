@@ -22,10 +22,11 @@ class MainActivity : AppCompatActivity() {
         // Bottoni
         val sensorListButton: Button = findViewById(R.id.sensorListButton)
         val sensorDataButton: Button = findViewById(R.id.sensorDataButton)
-        sensorDataButton.isEnabled = false
         val repeaterButton: Button = findViewById(R.id.repeaterButton)
         val picButton: Button = findViewById(R.id.picAudioButton)
         val shareSensorsButton: Button = findViewById(R.id.shareSensorsButton)
+        val settingsButton: Button = findViewById(R.id.settingsButton)
+        val statsButton: Button = findViewById(R.id.statsButton)
 
         // Prima di avviare foreground service devo chiedere permesso per notifica
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -51,6 +52,10 @@ class MainActivity : AppCompatActivity() {
 
         shareSensorsButton.setOnClickListener {
             startActivity(Intent(this, ShareSensorsActivity::class.java))
+        }
+
+        settingsButton.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
         }
     }
 
