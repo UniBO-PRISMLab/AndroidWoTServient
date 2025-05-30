@@ -1,11 +1,16 @@
 package com.example.testserver
 
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorManager
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.preference.PreferenceManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -16,35 +21,17 @@ import kotlinx.coroutines.withContext
 class SensorDataActivity : AppCompatActivity() {
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    private lateinit var counterClient: CounterClient
-    private lateinit var lightSensorClient: LightSensorClient
-    private lateinit var pressureSensorClient: PressureSensorClient
-    private lateinit var magnetometerClient: MagnetometerClient
+    private val sensorClients = mutableMapOf<String, GenericSensorClient>()
+    private val sensorViews = mutableMapOf<String, TextView>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_sensor_data)
 
-        val prefs = getSharedPreferences("sensor_settings", MODE_PRIVATE)
-
-        val counterEnabled = prefs.getBoolean("counter", true)
-        val lightEnabled = prefs.getBoolean("light", false)
-        val pressureEnabled = prefs.getBoolean("pressure", false)
-        val magnetoEnabled = prefs.getBoolean("magnetometer", false)
-
-        // Stato connessione
         val connectionStatus = findViewById<TextView>(R.id.connectionStatus)
         val progressBar = findViewById<ProgressBar>(R.id.progressBar)
-
-        val counterText = findViewById<TextView>(R.id.counterText)
-        val lightSensorText = findViewById<TextView>(R.id.sensorValueText)
-        val pressureText = findViewById<TextView>(R.id.pressureValueText)
-        val magnetometerText = findViewById<TextView>(R.id.sensorMagnetoText)
-
         val refreshButton = findViewById<Button>(R.id.refreshButton)
-        val incrementButton = findViewById<Button>(R.id.incrementButton)
-        val decreaseButton = findViewById<Button>(R.id.decreaseButton)
-        val resetButton = findViewById<Button>(R.id.resetButton)
+        val sensorDataContainer = findViewById<LinearLayout>(R.id.sensorDataContainer)
 
         coroutineScope.launch {
             withContext(Dispatchers.Main) {
@@ -53,49 +40,42 @@ class SensorDataActivity : AppCompatActivity() {
             }
             try {
                 val wot = WoTClientHolder.wot!!
-                if(counterEnabled) {
-                    counterClient = CounterClient(wot, "http://localhost:8080/counter")
-                    counterClient.connect()
-                }
-                if(lightEnabled) {
-                    lightSensorClient = LightSensorClient(wot, "http://localhost:8080/light-sensor")
-                    lightSensorClient.connect()
-                }
-                if(pressureEnabled){
-                    pressureSensorClient =
-                        PressureSensorClient(wot, "http://localhost:8080/pressure-sensor")
-                    pressureSensorClient.connect()
-                }
-                if(magnetoEnabled) {
-                    magnetometerClient =
-                        MagnetometerClient(wot, "http://localhost:8080/magnetometer-sensor")
-                    magnetometerClient.connect()
+                val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this@SensorDataActivity)
+                val sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+                val sensorList = sensorManager.getSensorList(Sensor.TYPE_ALL)
+
+                for (sensor in sensorList) {
+                    val key = "share_sensor_${sensor.name}"
+                    if(!sharedPrefs.getBoolean(key, false)) continue
+
+                    val thingId = sanitizeSensorName(sensor.name)
+                    val url = "http://localhost:8080/sensor-$thingId"
+                    val client = GenericSensorClient(wot, url)
+                    client.connect()
+                    sensorClients[thingId] = client
+
+                    withContext(Dispatchers.Main) {
+                        val textView = TextView(this@SensorDataActivity).apply {
+                            textSize = 16f
+                            text = "${sensor.name}: caricamento... "
+                            setPadding(8, 16, 8, 16)
+                        }
+                        sensorViews[thingId] = textView
+                        sensorDataContainer.addView(textView)
+                    }
                 }
 
                 withContext(Dispatchers.Main) {
                     connectionStatus.text = "Connesso!"
                     progressBar.visibility = View.GONE
 
-                    if(!counterEnabled) {
-                        counterText.visibility = View.GONE
-                        incrementButton.visibility = View.GONE
-                        decreaseButton.visibility = View.GONE
-                        resetButton.visibility = View.GONE
-                    }
-                    if(!lightEnabled) lightSensorText.visibility = View.GONE
-                    if(!pressureEnabled) pressureText.visibility = View.GONE
-                    if(!magnetoEnabled) magnetometerText.visibility = View.GONE
                 }
 
-                updateValues(
-                    counterText.takeIf { counterEnabled },
-                    lightSensorText.takeIf { lightEnabled },
-                    pressureText.takeIf { pressureEnabled },
-                    magnetometerText.takeIf { magnetoEnabled }
-                )
+                updateAllSensorValues()
+
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    connectionStatus.text = "Errore di connessione!"
+                    connectionStatus.text = "Errore di connessione: ${e.message}"
                     progressBar.visibility = View.GONE
                 }
             }
@@ -103,85 +83,30 @@ class SensorDataActivity : AppCompatActivity() {
 
         refreshButton.setOnClickListener {
             coroutineScope.launch {
-                updateValues(
-                    counterText.takeIf { counterEnabled },
-                    lightSensorText.takeIf { lightEnabled },
-                    pressureText.takeIf { pressureEnabled },
-                    magnetometerText.takeIf { magnetoEnabled }
-                )
+                updateAllSensorValues()
             }
         }
+    }
 
-        if(counterEnabled) {
-            incrementButton.setOnClickListener {
-                coroutineScope.launch {
-                    counterClient.increase()
-                    val value = counterClient.getCounter()
-                    withContext(Dispatchers.Main) {
-                        counterText.text = "Valore: $value"
-                    }
+    private suspend fun updateAllSensorValues() {
+        for ((thingId, client) in sensorClients) {
+            try {
+                val value = client.getSensorValue()
+                withContext(Dispatchers.Main) {
+                    sensorViews[thingId]?.text = "$thingId: $value"
                 }
-            }
-
-            decreaseButton.setOnClickListener {
-                coroutineScope.launch {
-                    counterClient.decrease()
-                    val value = counterClient.getCounter()
-                    withContext(Dispatchers.Main) {
-                        counterText.text = "Valore: $value"
-                    }
-                }
-            }
-
-            resetButton.setOnClickListener {
-                coroutineScope.launch {
-                    counterClient.reset()
-                    val value = counterClient.getCounter()
-                    withContext(Dispatchers.Main) {
-                        counterText.text = "Valore: $value"
-                    }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    sensorViews[thingId]?.text = "$thingId: errore"
                 }
             }
         }
     }
 
-    private suspend fun updateValues(
-        counterText: TextView?,
-        lightSensorText: TextView?,
-        pressureText: TextView?,
-        magnetometerText: TextView?
-    ) {
-        withContext(Dispatchers.Main) {
-            counterText?.text = "Counter: Loading..."
-            lightSensorText?.text = "Luminosità: Loading..."
-            pressureText?.text = "Pressione: Loading..."
-            magnetometerText?.text = "Campo magnetico: Loading..."
-        }
-
-        if (counterText != null) {
-            val counter = counterClient.getCounter()
-            withContext(Dispatchers.Main) {
-                counterText.text = "Counter: $counter"
-            }
-        }
-        if (lightSensorText != null) {
-            val lightSensor = lightSensorClient.getLightLevel()
-            withContext(Dispatchers.Main) {
-                lightSensorText.text = "Luminosità: $lightSensor lux"
-            }
-        }
-        if (pressureText != null) {
-            val pressure = pressureSensorClient.getPressure()
-            withContext(Dispatchers.Main) {
-                pressureText.text = "Pressione: $pressure hPa"
-            }
-        }
-        if (magnetometerText != null) {
-            val magneticField = magnetometerClient.getMagneticField()
-            withContext(Dispatchers.Main) {
-                magnetometerText.text = "Campo magnetico:\nX: ${magneticField.first} µT\nY: ${magneticField.second} µT\nZ: ${magneticField.third} µT"
-            }
-        }
+    private fun sanitizeSensorName(name: String): String {
+        return name.lowercase()
+            .replace("\\s+".toRegex(), "-")
+            .replace("[^a-z0-9\\-]".toRegex(), "")
     }
 
     override fun onDestroy() {

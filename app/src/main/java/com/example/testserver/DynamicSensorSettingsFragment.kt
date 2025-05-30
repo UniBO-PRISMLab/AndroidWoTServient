@@ -20,12 +20,12 @@ class DynamicSensorSettingsFragment : PreferenceFragmentCompat() {
 
         val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context)
         for(sensor in sensors) {
-            val key = "enable_sensor_${sensor.type}"
+            val key = "share_sensor_${sensor.name}"
             val pref = SwitchPreferenceCompat(context).apply {
                 title = sensor.name
                 summary = "Abilita/disabilita ${sensor.name}"
                 this.key = key
-                setDefaultValue(true)
+                setDefaultValue(false)
             }
             screen.addPreference(pref)
         }
