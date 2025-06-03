@@ -24,7 +24,6 @@ class MainActivity : AppCompatActivity() {
         val sensorDataButton: Button = findViewById(R.id.sensorDataButton)
         val repeaterButton: Button = findViewById(R.id.repeaterButton)
         val picButton: Button = findViewById(R.id.picAudioButton)
-        val shareSensorsButton: Button = findViewById(R.id.shareSensorsButton)
         val settingsButton: Button = findViewById(R.id.settingsButton)
         val statsButton: Button = findViewById(R.id.statsButton)
 
@@ -48,10 +47,6 @@ class MainActivity : AppCompatActivity() {
 
         picButton.setOnClickListener {
             startActivity(Intent(this, PicAudioActivity::class.java))
-        }
-
-        shareSensorsButton.setOnClickListener {
-            startActivity(Intent(this, ShareSensorsActivity::class.java))
         }
 
         settingsButton.setOnClickListener {

@@ -34,7 +34,6 @@
         <activity android:name=".SensorDataActivity" />
         <activity android:name=".SensorListActivity" />
         <activity android:name=".PicAudioActivity" />
-        <activity android:name=".ShareSensorsActivity" />
         <activity android:name=".SettingsActivity" />
         <service android:name=".WoTService"
             android:exported="false"

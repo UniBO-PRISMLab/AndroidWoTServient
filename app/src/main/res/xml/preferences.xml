@@ -1,19 +1,4 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Sezione Sensori -->
-    <PreferenceCategory android:title="Sensori attivi">
-        <SwitchPreferenceCompat
-            android:key="enable_light_sensor"
-            android:title="Sensore di luce"
-            android:defaultValue="true" />
-        <SwitchPreferenceCompat
-            android:key="enable_pressure_sensor"
-            android:title="Sensore di pressione"
-            android:defaultValue="true" />
-        <SwitchPreferenceCompat
-            android:key="enable_magnetometer"
-            android:title="Magnetometro"
-            android:defaultValue="true" />
-    </PreferenceCategory>
 
     <!-- Parametri servient -->
     <PreferenceCategory android:title="Servient">
