@@ -55,18 +55,7 @@ class Server(
             val exposedThing =
                 ExposedThingBuilder.createExposedThing(wot, sensorThing, GenericSensorThing::class)
             if (exposedThing != null) {
-                val ipAddress = getLocalIpAddress()
-                val port = 8080
                 val td = exposedThing.getThingDescription()
-                td.forms = td.forms.map { form ->
-                    form.copy(href = form.href.replace("localhost", "$ipAddress:$port"))
-                }.toMutableList()
-
-                for (prop in td.properties.values) {
-                    prop.forms = prop.forms.map { form ->
-                        form.copy(href = form.href.replace("localhost", "$ipAddress:$port"))
-                    }.toMutableList()
-                }
                 td.id = thingId
                 td.title = name
                 td.description = "Thing for sensor type: $type"
@@ -108,17 +97,4 @@ class Server(
             .replace("\\s+".toRegex(), "-")
             .replace("[^a-z0-9\\-]".toRegex(), "")
     }
-}
-
-private fun getLocalIpAddress(): String {
-    val interfaces = NetworkInterface.getNetworkInterfaces()
-    for (intf in interfaces) {
-        val addrs = intf.inetAddresses
-        for (addr in addrs) {
-            if (!addr.isLoopbackAddress && addr is Inet4Address) {
-                return addr.hostAddress ?: "127.0.0.1"
-            }
-        }
-    }
-    return "127.0.0.1"
 }

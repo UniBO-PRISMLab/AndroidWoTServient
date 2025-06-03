@@ -40,6 +40,20 @@ class GenericSensorThing(
     )
     var z: Float = 0f
 
+    @Property(
+        title = "value",
+        description = "Sensor values",
+        readOnly = true
+    )
+    val value: List<Float>
+        get() {
+            return if (y == 0f && z == 0f) {
+                listOf(x)
+            } else {
+                listOf(x, y, z)
+            }
+        }
+
     private val sensorManager: SensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val sensor: Sensor? = sensorManager.getDefaultSensor(sensorType)
 

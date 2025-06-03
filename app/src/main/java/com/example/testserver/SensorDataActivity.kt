@@ -122,8 +122,7 @@ class SensorDataActivity : AppCompatActivity() {
                     if(!sharedPrefs.getBoolean(key, false)) continue
 
                     val thingId = sanitizeSensorName(sensor.name)
-                    val ip = getLocalIpAddress() ?: "127.0.0.1"
-                    val url = "http://$ip:8080/sensor-$thingId"
+                    val url = "http://localhost:8080/sensor-$thingId"
                     val client = GenericSensorClient(wot, url)
                     try {
                         client.connect()
@@ -193,23 +192,6 @@ class SensorDataActivity : AppCompatActivity() {
         return name.lowercase()
             .replace("\\s+".toRegex(), "-")
             .replace("[^a-z0-9\\-]".toRegex(), "")
-    }
-
-    private fun getLocalIpAddress(): String? {
-        try {
-            val interfaces = NetworkInterface.getNetworkInterfaces()
-            for (intf in interfaces) {
-                val addrs = intf.inetAddresses
-                for (addr in addrs) {
-                    if (!addr.isLoopbackAddress && addr is Inet4Address) {
-                        return addr.hostAddress
-                    }
-                }
-            }
-        } catch (ex: Exception) {
-            ex.printStackTrace()
-        }
-        return null
     }
 
     override fun onDestroy() {

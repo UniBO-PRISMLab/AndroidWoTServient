@@ -18,8 +18,7 @@ class GenericSensorClient(
         thing = wot.consume(td)
     }
 
-    // TODO Per funzionare singolo aggiungere property: String
-    suspend fun getSensorValue(): Any? {
-        return thing.genericReadProperty("value")
+    suspend fun getSensorValue(): List<Float>? {
+        return thing.genericReadProperty("value") as? List<Float>
     }
 }
