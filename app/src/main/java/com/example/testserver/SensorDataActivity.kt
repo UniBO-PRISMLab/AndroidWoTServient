@@ -4,10 +4,13 @@ import android.content.Context
 import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.os.Bundle
+import android.os.PersistableBundle
+import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceManager
@@ -17,6 +20,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.eclipse.thingweb.Wot
+import java.net.Inet4Address
+import java.net.NetworkInterface
 
 /* TODO: OLD
 class SensorDataActivity : AppCompatActivity() {
@@ -116,10 +122,12 @@ class SensorDataActivity : AppCompatActivity() {
                     if(!sharedPrefs.getBoolean(key, false)) continue
 
                     val thingId = sanitizeSensorName(sensor.name)
-                    val url = "http://localhost:8080/sensor-$thingId"
+                    val ip = getLocalIpAddress() ?: "127.0.0.1"
+                    val url = "http://$ip:8080/sensor-$thingId"
                     val client = GenericSensorClient(wot, url)
                     try {
                         client.connect()
+                        Log.d("DEBUG", "Trying to connect to: $url (sensor: ${sensor.name})")
                         sensorClients[thingId] = client
 
                         withContext(Dispatchers.Main) {
@@ -185,6 +193,23 @@ class SensorDataActivity : AppCompatActivity() {
         return name.lowercase()
             .replace("\\s+".toRegex(), "-")
             .replace("[^a-z0-9\\-]".toRegex(), "")
+    }
+
+    private fun getLocalIpAddress(): String? {
+        try {
+            val interfaces = NetworkInterface.getNetworkInterfaces()
+            for (intf in interfaces) {
+                val addrs = intf.inetAddresses
+                for (addr in addrs) {
+                    if (!addr.isLoopbackAddress && addr is Inet4Address) {
+                        return addr.hostAddress
+                    }
+                }
+            }
+        } catch (ex: Exception) {
+            ex.printStackTrace()
+        }
+        return null
     }
 
     override fun onDestroy() {
