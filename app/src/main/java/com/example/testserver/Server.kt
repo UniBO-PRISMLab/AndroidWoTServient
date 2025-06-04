@@ -6,7 +6,6 @@ import android.hardware.SensorEvent
 import android.hardware.SensorManager
 import android.hardware.SensorEventListener
 import android.util.Log
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.JsonNodeFactory
 import org.eclipse.thingweb.Servient
 import org.eclipse.thingweb.Wot
@@ -14,11 +13,7 @@ import org.eclipse.thingweb.reflection.ExposedThingBuilder
 import org.eclipse.thingweb.thing.schema.InteractionInput
 import org.eclipse.thingweb.thing.schema.WoTExposedThing
 import java.io.File
-import java.net.Inet4Address
-import java.net.NetworkInterface
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Executors
 
 class Server(
     private val wot: Wot,
@@ -27,7 +22,6 @@ class Server(
 ) {
     var photoThing: PhotoThing? = null
     var audioThing: AudioThing? = null
-    private val objectMapper = ObjectMapper()
     private val jsonNodeFactory = JsonNodeFactory.instance
 
     suspend fun start(): List<WoTExposedThing> {
