@@ -2,15 +2,23 @@ package com.example.testserver
 
 import android.content.Context
 import android.hardware.Sensor
+import android.hardware.SensorEvent
 import android.hardware.SensorManager
+import android.hardware.SensorEventListener
 import android.util.Log
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.JsonNodeFactory
 import org.eclipse.thingweb.Servient
 import org.eclipse.thingweb.Wot
 import org.eclipse.thingweb.reflection.ExposedThingBuilder
+import org.eclipse.thingweb.thing.schema.InteractionInput
 import org.eclipse.thingweb.thing.schema.WoTExposedThing
 import java.io.File
 import java.net.Inet4Address
 import java.net.NetworkInterface
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 
 class Server(
     private val wot: Wot,
@@ -19,6 +27,8 @@ class Server(
 ) {
     var photoThing: PhotoThing? = null
     var audioThing: AudioThing? = null
+    private val objectMapper = ObjectMapper()
+    private val jsonNodeFactory = JsonNodeFactory.instance
 
     suspend fun start(): List<WoTExposedThing> {
         val sharedPrefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
@@ -33,31 +43,46 @@ class Server(
         for (sensor in availableSensors) {
             val prefKey = "share_sensor_${sensor.name}"
             val shouldShare = sharedPrefs.getBoolean(prefKey, false)
-            if (!shouldShare) continue
+            if(!shouldShare) continue
 
             Log.d("SERVER_PREF", "Checking $prefKey = $shouldShare")
             val type = sensor.type
             val name = sensor.name
-            val thingId = "${sanitizeSensorName(name, type)}"
+            val thingId = sanitizeSensorName(name, type)
 
-            // Salta se ID già aggiunto
-            if (thingId in addedThingIds) continue
+            if(thingId in addedThingIds) continue
             addedThingIds.add(thingId)
 
-            val sensorThing = GenericSensorThing(context, type, name)
-            val exposedThing =
-                ExposedThingBuilder.createExposedThing(wot, sensorThing, GenericSensorThing::class)
-            if (exposedThing != null) {
-                val td = exposedThing.getThingDescription()
-                td.id = thingId
-                td.title = name
-                td.description = "Thing for sensor type: $type"
+            val thing = wot.produce {
+                id = thingId
+                title = name
+                description = "Thing for sensor type: $type"
 
-                servient.addThing(exposedThing)
-                Log.d("DEBUG", "Exposing: $thingId from sensor: ${sensor.name}")
-                servient.expose(td.id)
-                exposedThings.add(exposedThing)
+                numberProperty("value") {
+                    title = "Sensor value"
+                    readOnly = true
+                    observable = true
+                    unit = getSensorUnit(type)
+                }
+            }.apply {
+                    val sensorType = type
+                    setPropertyReadHandler("value") { input ->
+                        try {
+                            val sensorValue = readSensorValue(context, sensorType)
+                            val jsonNode = jsonNodeFactory.numberNode(sensorValue)
+                            InteractionInput.Value(jsonNode)
+                        } catch (e: Exception) {
+                            val errorNode = jsonNodeFactory.numberNode(-1f)
+                            InteractionInput.Value(errorNode)
+                        }
+                    }
             }
+
+
+            servient.addThing(thing)
+            servient.expose(thingId)
+            exposedThings.add(thing)
+            Log.d("DEBUG", "Exposed dynamic sensor Thing: $thingId")
         }
 
         // Photo Thing
@@ -90,5 +115,47 @@ class Server(
             .replace("\\s+".toRegex(), "-")
             .replace("[^a-z0-9\\-]".toRegex(), "")
         return "$sanitizedName-$type"
+    }
+
+    fun readSensorValue(context: Context, sensorType: Int): Float {
+        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        val sensor = sensorManager.getDefaultSensor(sensorType) ?: return -1f
+
+        val latch = CountDownLatch(1)
+        var value = -1f
+
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent?) {
+                if (event != null) {
+                    value = event.values[0]
+                    latch.countDown()
+                    sensorManager.unregisterListener(this)
+                }
+            }
+
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+        }
+
+        sensorManager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_NORMAL)
+
+        try {
+            latch.await(200, java.util.concurrent.TimeUnit.MILLISECONDS)
+        } catch (e: InterruptedException) {
+            e.printStackTrace()
+        }
+
+        sensorManager.unregisterListener(listener)
+        return value
+    }
+
+    fun getSensorUnit(type: Int): String? = when (type) {
+        Sensor.TYPE_LIGHT -> "lux"
+        Sensor.TYPE_PRESSURE -> "hPa"
+        Sensor.TYPE_ACCELEROMETER -> "m/s^2"
+        Sensor.TYPE_MAGNETIC_FIELD -> "μT"
+        Sensor.TYPE_PROXIMITY -> "cm"
+        Sensor.TYPE_AMBIENT_TEMPERATURE -> "°C"
+        Sensor.TYPE_RELATIVE_HUMIDITY -> "%"
+        else -> null
     }
 }

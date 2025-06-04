@@ -94,7 +94,8 @@ class SensorDataActivity : AppCompatActivity() {
 class SensorDataActivity : AppCompatActivity() {
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    private val sensorClients = mutableMapOf<String, GenericSensorClient>()
+    // private val sensorClients = mutableMapOf<String, GenericSensorClient>()
+    private val sensorClients = mutableMapOf<String, SingleValueSensorClient>()
     private val sensorViews = mutableMapOf<String, TextView>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -124,7 +125,8 @@ class SensorDataActivity : AppCompatActivity() {
                     val thingId = sanitizeSensorName(sensor.name, sensor.type)
                     // potresti aggiungere 8080/sensor-
                     val url = "http://localhost:8080/$thingId"
-                    val client = GenericSensorClient(wot, url)
+                    // val client = GenericSensorClient(wot, url)
+                    val client = SingleValueSensorClient(wot, url)
                     try {
                         client.connect()
                         Log.d("DEBUG", "Trying to connect to: $url (sensor: ${sensor.name})")
