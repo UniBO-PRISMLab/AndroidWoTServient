@@ -4,13 +4,11 @@ import android.content.Context
 import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.os.Bundle
-import android.os.PersistableBundle
 import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ProgressBar
-import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceManager
@@ -20,81 +18,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.eclipse.thingweb.Wot
-import java.net.Inet4Address
-import java.net.NetworkInterface
-
-/* TODO: OLD
-class SensorDataActivity : AppCompatActivity() {
-    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private lateinit var client: GenericSensorClient
-    private lateinit var sensorTextView: TextView
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_sensor_data)
-        val connectionStatus = findViewById<TextView>(R.id.connectionStatus)
-        val progressBar = findViewById<ProgressBar>(R.id.progressBar)
-        val refreshButton = findViewById<Button>(R.id.refreshButton)
-        val sensorDataContainer = findViewById<LinearLayout>(R.id.sensorDataContainer)
-        coroutineScope.launch {
-            withContext(Dispatchers.Main) {
-                connectionStatus.text = "In connessione.."
-                progressBar.visibility = View.VISIBLE
-            }
-            try {
-                val wot = WoTClientHolder.wot!!
-                val url = "http://localhost:8080/sensor-light"
-                client = GenericSensorClient(wot, url)
-                client.connect()
-                withContext(Dispatchers.Main) {
-                    sensorTextView = TextView(this@SensorDataActivity).apply {
-                        textSize = 16f
-                        text = "Light sensor: caricamento"
-                        setPadding(8, 16, 8, 16)
-                    }
-                    sensorDataContainer.addView(sensorTextView)
-                    connectionStatus.text = "Connesso"
-                    progressBar.visibility = View.GONE
-                }
-                updateSensorValue()
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    connectionStatus.text = "Errore di connessione: ${e.message}"
-                    progressBar.visibility = View.GONE
-                }
-            }
-        }
-        refreshButton.setOnClickListener {
-            coroutineScope.launch {
-                updateSensorValue()
-            }
-        }
-    }
-
-    private suspend fun updateSensorValue() {
-        try {
-            val value = client.getSensorValue("x")
-            withContext(Dispatchers.Main) {
-                sensorTextView.text = "Light Sensor: $value"
-            }
-        } catch (e: Exception) {
-            withContext(Dispatchers.Main) {
-                sensorTextView.text = "Light sensor: errore"
-            }
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        coroutineScope.cancel()
-    }
-}
-*/
 
 class SensorDataActivity : AppCompatActivity() {
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
-    // private val sensorClients = mutableMapOf<String, GenericSensorClient>()
     private val sensorClients = mutableMapOf<String, SingleValueSensorClient>()
     private val sensorViews = mutableMapOf<String, TextView>()
 
@@ -123,9 +49,7 @@ class SensorDataActivity : AppCompatActivity() {
                     if(!sharedPrefs.getBoolean(key, false)) continue
 
                     val thingId = sanitizeSensorName(sensor.name, sensor.type)
-                    // potresti aggiungere 8080/sensor-
                     val url = "http://localhost:8080/$thingId"
-                    // val client = GenericSensorClient(wot, url)
                     val client = SingleValueSensorClient(wot, url)
                     try {
                         client.connect()

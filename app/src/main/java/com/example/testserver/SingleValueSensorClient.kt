@@ -10,11 +10,9 @@ class SingleValueSensorClient(
     private val url: String
 ) {
     private lateinit var thing: WoTConsumedThing
-    private var title: String = ""
 
     suspend fun connect() {
         val td = wot.requestThingDescription(URI(url))
-        title = td.title ?: "Unknown Thing"
         thing = wot.consume(td)
     }
 
