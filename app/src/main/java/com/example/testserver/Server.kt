@@ -28,29 +28,22 @@ class Server(
         val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         val availableSensors = sensorManager.getSensorList(Sensor.TYPE_ALL)
 
-        /* TODO: Prova con un sensore
-        val sensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
-        val sensorThing = GenericSensorThing(context, Sensor.TYPE_LIGHT, "Light Sensor")
-        val exposedThing = ExposedThingBuilder.createExposedThing(wot, sensorThing,
-            GenericSensorThing::class)
-        if (exposedThing != null) {
-            val td = exposedThing.getThingDescription()
-            td.id = "sensor-light"
-            td.title = "Light Sensor"
-            td.description = "Thing for light sensor"
-            servient.addThing(exposedThing)
-            servient.expose(td.id)
-            println("Exposed light sensor Thing")
-            exposedThings.add(exposedThing)
-        }*/
+        val addedThingIds = mutableSetOf<String>()
 
         for (sensor in availableSensors) {
             val prefKey = "share_sensor_${sensor.name}"
-            if (!sharedPrefs.getBoolean(prefKey, true)) continue
+            val shouldShare = sharedPrefs.getBoolean(prefKey, false)
+            if (!shouldShare) continue
 
+            Log.d("SERVER_PREF", "Checking $prefKey = $shouldShare")
             val type = sensor.type
             val name = sensor.name
-            val thingId = "sensor-${sanitizeSensorName(name)}"
+            val thingId = "${sanitizeSensorName(name, type)}"
+
+            // Salta se ID già aggiunto
+            if (thingId in addedThingIds) continue
+            addedThingIds.add(thingId)
+
             val sensorThing = GenericSensorThing(context, type, name)
             val exposedThing =
                 ExposedThingBuilder.createExposedThing(wot, sensorThing, GenericSensorThing::class)
@@ -92,9 +85,10 @@ class Server(
         return exposedThings
     }
 
-    private fun sanitizeSensorName(name: String): String {
-        return name.lowercase()
+    private fun sanitizeSensorName(name: String, type: Int): String {
+        val sanitizedName = name.lowercase()
             .replace("\\s+".toRegex(), "-")
             .replace("[^a-z0-9\\-]".toRegex(), "")
+        return "$sanitizedName-$type"
     }
 }

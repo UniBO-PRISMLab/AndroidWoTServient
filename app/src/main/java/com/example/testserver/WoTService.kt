@@ -1,10 +1,13 @@
 package com.example.testserver
 
 import android.app.*
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,9 +24,19 @@ class WoTService : Service() {
     private lateinit var servient: Servient
     private lateinit var wot: Wot
 
+    private val preferenceReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "PREFERENCES_UPDATED") {
+                restartWoTServer()
+            }
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         startForeground(1, createNotification())
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Context.RECEIVER_NOT_EXPORTED else 0
+        registerReceiver(preferenceReceiver, IntentFilter("PREFERENCES_UPDATED"), flags)
         startWoTServer()
     }
 
@@ -43,6 +56,18 @@ class WoTService : Service() {
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }
+    }
+
+    private fun restartWoTServer() {
+        coroutineScope.launch {
+            try {
+                servient.shutdown()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            Log.d("WOT_SERVICE", "Riavvio Server")
+            startWoTServer()
         }
     }
 
@@ -74,6 +99,7 @@ class WoTService : Service() {
     }
 
     override fun onDestroy() {
+        unregisterReceiver(preferenceReceiver)
         coroutineScope.cancel()
         super.onDestroy()
     }

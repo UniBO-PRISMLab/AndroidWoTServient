@@ -121,8 +121,9 @@ class SensorDataActivity : AppCompatActivity() {
                     val key = "share_sensor_${sensor.name}"
                     if(!sharedPrefs.getBoolean(key, false)) continue
 
-                    val thingId = sanitizeSensorName(sensor.name)
-                    val url = "http://localhost:8080/sensor-$thingId"
+                    val thingId = sanitizeSensorName(sensor.name, sensor.type)
+                    // potresti aggiungere 8080/sensor-
+                    val url = "http://localhost:8080/$thingId"
                     val client = GenericSensorClient(wot, url)
                     try {
                         client.connect()
@@ -139,10 +140,11 @@ class SensorDataActivity : AppCompatActivity() {
                             sensorDataContainer.addView(textView)
                         }
                     } catch (e: Exception) {
+                        Log.e("DEBUG", "Errore connessione a &url", e)
                         withContext(Dispatchers.Main) {
                             val textView = TextView(this@SensorDataActivity).apply {
                                 textSize = 16f
-                                text = "${sensor.name}: errore di connessione"
+                                text = "${sensor.name}: errore di connessione - ${e.message ?: "Errore sconosciuto"}"
                                 setPadding(8, 16, 8, 16)
                             }
                             sensorDataContainer.addView(textView)
@@ -188,10 +190,11 @@ class SensorDataActivity : AppCompatActivity() {
         }
     }
 
-    private fun sanitizeSensorName(name: String): String {
-        return name.lowercase()
+    private fun sanitizeSensorName(name: String, type: Int): String {
+        val sanitizedName = name.lowercase()
             .replace("\\s+".toRegex(), "-")
             .replace("[^a-z0-9\\-]".toRegex(), "")
+        return "$sanitizedName-$type"
     }
 
     override fun onDestroy() {
