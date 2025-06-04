@@ -23,11 +23,14 @@ class WoTService : Service() {
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private lateinit var servient: Servient
     private lateinit var wot: Wot
+    private lateinit var server: Server
 
     private val preferenceReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == "PREFERENCES_UPDATED") {
-                restartWoTServer()
+                coroutineScope.launch {
+                    server.updateExposedThings()
+                }
             }
         }
     }
@@ -51,23 +54,12 @@ class WoTService : Service() {
                 WoTClientHolder.wot = wot
                 servient.start()
 
-                val server = Server(wot, servient, applicationContext)
+                server = Server(wot, servient, applicationContext)
                 server.start()
             } catch (e: Exception) {
+                Log.e("WOT_SERVICE", "Errore Avvio Server!")
                 e.printStackTrace()
             }
-        }
-    }
-
-    private fun restartWoTServer() {
-        coroutineScope.launch {
-            try {
-                servient.shutdown()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-            Log.d("WOT_SERVICE", "Riavvio Server")
-            startWoTServer()
         }
     }
 
@@ -112,7 +104,6 @@ class WoTService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-
         return START_STICKY
     }
 }

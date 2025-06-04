@@ -23,66 +23,20 @@ class Server(
     var photoThing: PhotoThing? = null
     var audioThing: AudioThing? = null
     private val jsonNodeFactory = JsonNodeFactory.instance
+    private val activeThings = mutableMapOf<String, WoTExposedThing>()
 
     suspend fun start(): List<WoTExposedThing> {
-        val sharedPrefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
         val exposedThings = mutableListOf<WoTExposedThing>()
-
-        // Sensori dinamici
-        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        val availableSensors = sensorManager.getSensorList(Sensor.TYPE_ALL)
-
-        val addedThingIds = mutableSetOf<String>()
-
-        for (sensor in availableSensors) {
-            val prefKey = "share_sensor_${sensor.name}"
-            val shouldShare = sharedPrefs.getBoolean(prefKey, false)
-            if(!shouldShare) continue
-
-            Log.d("SERVER_PREF", "Checking $prefKey = $shouldShare")
-            val type = sensor.type
-            val name = sensor.name
-            val thingId = sanitizeSensorName(name, type)
-
-            if(thingId in addedThingIds) continue
-            addedThingIds.add(thingId)
-
-            val thing = wot.produce {
-                id = thingId
-                title = name
-                description = "Thing for sensor type: $type"
-
-                numberProperty("value") {
-                    title = "Sensor value"
-                    readOnly = true
-                    observable = true
-                    unit = getSensorUnit(type)
-                }
-            }.apply {
-                    val sensorType = type
-                    setPropertyReadHandler("value") { input ->
-                        try {
-                            val sensorValue = readSensorValue(context, sensorType)
-                            val jsonNode = jsonNodeFactory.numberNode(sensorValue)
-                            InteractionInput.Value(jsonNode)
-                        } catch (e: Exception) {
-                            val errorNode = jsonNodeFactory.numberNode(-1f)
-                            InteractionInput.Value(errorNode)
-                        }
-                    }
-            }
-
-
-            servient.addThing(thing)
-            servient.expose(thingId)
-            exposedThings.add(thing)
-            Log.d("DEBUG", "Exposed dynamic sensor Thing: $thingId")
+        updateExposedThings().forEach {
+            exposedThings.add(it)
         }
 
+        // Aggiungi Thing multimediali una sola volta
         // Photo Thing
         val photoFile = File(context.externalCacheDir, "photo.jpg")
         photoThing = PhotoThing(photoFile)
-        val exposedPhoto = ExposedThingBuilder.createExposedThing(wot, photoThing!!, PhotoThing::class)
+        val exposedPhoto =
+            ExposedThingBuilder.createExposedThing(wot, photoThing!!, PhotoThing::class)
         if (exposedPhoto != null) {
             servient.addThing(exposedPhoto)
             servient.expose(exposedPhoto.getThingDescription().id)
@@ -93,7 +47,8 @@ class Server(
         // Audio Record Thing
         val audioFile = File(context.externalCacheDir, "audio.3gp")
         audioThing = AudioThing(audioFile)
-        val exposedAudio = ExposedThingBuilder.createExposedThing(wot, audioThing!!, AudioThing::class)
+        val exposedAudio =
+            ExposedThingBuilder.createExposedThing(wot, audioThing!!, AudioThing::class)
         if (exposedAudio != null) {
             servient.addThing(exposedAudio)
             servient.expose(exposedAudio.getThingDescription().id)
@@ -102,6 +57,73 @@ class Server(
         }
 
         return exposedThings
+    }
+
+    suspend fun updateExposedThings(): List<WoTExposedThing> {
+        val sharedPrefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
+        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        val availableSensors = sensorManager.getSensorList(Sensor.TYPE_ALL)
+        val wantedThingIds = mutableSetOf<String>()
+        val newlyAdded = mutableListOf<WoTExposedThing>()
+
+        for (sensor in availableSensors) {
+            val prefKey = "share_sensor_${sensor.name}"
+            val shouldShare = sharedPrefs.getBoolean(prefKey, false)
+            if (!shouldShare) continue
+
+            Log.d("SERVER_PREF", "Checking $prefKey = $shouldShare")
+            val type = sensor.type
+            val name = sensor.name
+            val thingId = sanitizeSensorName(name, type)
+            wantedThingIds.add(thingId)
+
+            if (thingId in activeThings) continue
+
+            val thing = wot.produce {
+                id = thingId
+                title = name
+                description = "Thing for sensor $name, type: $type"
+
+                numberProperty("value") {
+                    title = "Sensor value"
+                    readOnly = true
+                    observable = true
+                    unit = getSensorUnit(type)
+                }
+            }.apply {
+                val sensorType = type
+                setPropertyReadHandler("value") { input ->
+                    try {
+                        val sensorValue = readSensorValue(context, sensorType)
+                        val jsonNode = jsonNodeFactory.numberNode(sensorValue)
+                        InteractionInput.Value(jsonNode)
+                    } catch (e: Exception) {
+                        val errorNode = jsonNodeFactory.numberNode(-1f)
+                        InteractionInput.Value(errorNode)
+                    }
+                }
+            }
+
+
+            servient.addThing(thing)
+            servient.expose(thingId)
+            activeThings[thingId] = thing
+            newlyAdded.add(thing)
+            Log.d("SERVER_UPDATE", "Added Thing: $thingId")
+        }
+
+        val toRemove = activeThings.keys - wantedThingIds
+        for (thingId in toRemove) {
+            try {
+                servient.destroy(thingId)
+                activeThings.remove(thingId)
+                Log.d("SERVER_UPDATE", "Removed Thing: $thingId")
+            } catch (e: Exception) {
+                Log.e("SERVER_UPDATE", "Errore rimozione $thingId", e)
+            }
+        }
+
+        return newlyAdded
     }
 
     private fun sanitizeSensorName(name: String, type: Int): String {
@@ -152,4 +174,6 @@ class Server(
         Sensor.TYPE_RELATIVE_HUMIDITY -> "%"
         else -> null
     }
+
+
 }
