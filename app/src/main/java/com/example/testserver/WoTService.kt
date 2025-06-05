@@ -28,8 +28,23 @@ class WoTService : Service() {
     private val preferenceReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == "PREFERENCES_UPDATED") {
+                val updatedType = intent.getStringExtra("update_type") ?: ""
                 coroutineScope.launch {
-                    server.updateExposedThings()
+                    when (updatedType) {
+                        "port" -> {
+                            // Cambio porta --> stop e riavvio
+                            stopWoTServer()
+                            startWoTServer()
+                        }
+                        "sensors" -> {
+                            // Aggiunta/rimozione sensori --> niente stop
+                            server.updateExposedThings()
+                        }
+                        else -> {
+                            // Default
+                            server.updateExposedThings()
+                        }
+                    }
                 }
             }
         }
@@ -38,6 +53,8 @@ class WoTService : Service() {
     override fun onCreate() {
         super.onCreate()
         startForeground(1, createNotification())
+        // Carico le stats
+        ServientStatsPrefs.load(applicationContext)
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Context.RECEIVER_NOT_EXPORTED else 0
         registerReceiver(preferenceReceiver, IntentFilter("PREFERENCES_UPDATED"), flags)
         startWoTServer()
@@ -46,8 +63,12 @@ class WoTService : Service() {
     private fun startWoTServer() {
         coroutineScope.launch {
             try {
+                // server_settings l'ho scelto io ora
+                val prefs = getSharedPreferences("server_settings", Context.MODE_PRIVATE)
+                val port = prefs.getString("server_port", "8080")?.toIntOrNull() ?: 8080
+
                 servient = Servient(
-                    servers = listOf(HttpProtocolServer()),
+                    servers = listOf(HttpProtocolServer(bindPort = port)),
                     clientFactories = listOf(HttpProtocolClientFactory())
                 )
                 wot = Wot.create(servient)
@@ -93,6 +114,8 @@ class WoTService : Service() {
     override fun onDestroy() {
         unregisterReceiver(preferenceReceiver)
         coroutineScope.cancel()
+        // Salvo stats
+        ServientStatsPrefs.save(applicationContext)
         super.onDestroy()
     }
 
@@ -105,5 +128,14 @@ class WoTService : Service() {
             return START_NOT_STICKY
         }
         return START_STICKY
+    }
+
+    private suspend fun stopWoTServer() {
+        try {
+            server.stop()
+            servient.shutdown()
+        } catch (e: Exception) {
+            Log.e("WOT_SERVICE", "Errore durante stop server!: ", e)
+        }
     }
 }

@@ -208,5 +208,44 @@ class Server(
         else -> listOf(null)
     }
 
+    suspend fun stop() {
+        try {
+            // Cicla su tutti i Thing esposti e li distrugge nel Servient
+            for (thingId in activeThings.keys.toList()) {
+                try {
+                    servient.destroy(thingId)
+                    Log.d("SERVER_STOP", "Destroyed Thing: $thingId")
+                } catch (e: Exception) {
+                    Log.e("SERVER_STOP", "Errore distruggendo $thingId", e)
+                }
+            }
+            activeThings.clear()
+
+            // Se hai Thing media esposti, rimuovili
+            photoThing?.let {
+                try {
+                    servient.destroy("photo-thing")
+                    Log.d("SERVER_STOP", "Destroyed PhotoThing")
+                } catch (e: Exception) {
+                    Log.e("SERVER_STOP", "Errore distruggendo PhotoThing", e)
+                }
+            }
+
+            audioThing?.let {
+                try {
+                    servient.destroy("audio-thing")
+                    Log.d("SERVER_STOP", "Destroyed AudioThing")
+                } catch (e: Exception) {
+                    Log.e("SERVER_STOP", "Errore distruggendo AudioThing", e)
+                }
+            }
+
+            photoThing = null
+            audioThing = null
+
+        } catch (e: Exception) {
+            Log.e("SERVER_STOP", "Errore durante stop Server", e)
+        }
+    }
 
 }

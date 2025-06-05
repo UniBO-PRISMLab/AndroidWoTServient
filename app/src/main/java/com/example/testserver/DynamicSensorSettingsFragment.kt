@@ -18,7 +18,9 @@ class DynamicSensorSettingsFragment : PreferenceFragmentCompat() {
     private val preferenceChangeListener =
         SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key != null && key.startsWith("share_sensor_")) {
-                requireContext().sendBroadcast(Intent("PREFERENCES_UPDATED"))
+                requireContext().sendBroadcast(
+                    Intent("PREFERENCES_UPDATED").putExtra("update_type", "sensors")
+                )
                 Log.d("DYNAMIC_PREF", "Broadcast inviato per chiave: $key")
             }
         }

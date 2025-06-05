@@ -49,7 +49,8 @@ class SensorDataActivity : AppCompatActivity() {
                     if(!sharedPrefs.getBoolean(key, false)) continue
 
                     val thingId = sanitizeSensorName(sensor.name, sensor.type)
-                    val url = "http://localhost:8080/$thingId"
+                    val port = sharedPrefs.getString("server_port", "8080")?.toIntOrNull() ?: 8080
+                    val url = "http://localhost:$port/$thingId"
                     val client = MultiValueSensorClient(wot, url)
                     try {
                         client.connect()

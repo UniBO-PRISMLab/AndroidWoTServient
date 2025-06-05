@@ -3,22 +3,15 @@
     <!-- Parametri servient -->
     <PreferenceCategory android:title="Servient">
         <EditTextPreference
-            android:key="servient_port"
+            android:key="server_port"
             android:title="Porta HTTP"
             android:inputType="number"
+            android:summary="Inserisci la porta (es. 8080)"
             android:defaultValue="8080" />
         <EditTextPreference
-            android:key="servient_hostname"
+            android:key="server_hostname"
             android:title="Hostname"
             android:defaultValue="localhost" />
     </PreferenceCategory>
 
-    <!-- Frequenza di aggiornamento -->
-    <PreferenceCategory android:title="Frequenza aggiornamento">
-        <ListPreference
-            android:key="update_frequency"
-            android:title="Aggiorna ogni..."
-            android:entries="@array/frequency_labels"
-            android:defaultValue="1000" />
-    </PreferenceCategory>
 </PreferenceScreen>
