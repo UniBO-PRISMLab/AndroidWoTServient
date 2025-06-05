@@ -1,0 +1,29 @@
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/uptimeText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Uptime: 0s" />
+
+        <com.github.mikephil.charting.charts.PieChart
+            android:id="@+id/thingPieChart"
+            android:layout_width="match_parent"
+            android:layout_height="300dp" />
+
+        <com.github.mikephil.charting.charts.BarChart
+            android:id="@+id/interactionBarChart"
+            android:layout_width="match_parent"
+            android:layout_height="300dp" />
+
+    </LinearLayout>
+
+</ScrollView>

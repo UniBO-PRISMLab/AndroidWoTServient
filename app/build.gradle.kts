@@ -52,6 +52,7 @@ android {
 
 dependencies {
 
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 
     implementation("org.eclipse.thingweb:kotlin-wot-reflection:0.1.0-SNAPSHOT")

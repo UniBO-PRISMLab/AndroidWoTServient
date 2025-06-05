@@ -120,7 +120,11 @@ class SensorDataActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     val views = sensorViews[thingId]
                     values.forEach { (prop, value) ->
-                        views?.get(prop)?.text = "$prop: $value"
+                        if(value == -1f) {
+                            views?.get(prop)?.text = "$prop: Sensore non presente/non funzionante"
+                        } else {
+                            views?.get(prop)?.text = "$prop: $value"
+                        }
                     }
                 }
             } catch (e: Exception) {

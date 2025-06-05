@@ -1,6 +1,7 @@
 package com.example.testserver
 
 import android.util.Base64
+import org.eclipse.thingweb.Servient
 import org.eclipse.thingweb.reflection.annotations.Action
 import org.eclipse.thingweb.reflection.annotations.Property
 import org.eclipse.thingweb.reflection.annotations.Thing
@@ -29,6 +30,7 @@ class AudioThing(private val audioFile: File) {
         description = "Reload latest audio from disk"
     )
     fun refresh() {
+        ServientStats.logRequest("audioThing", "refresh")
         loadAudio()
     }
 

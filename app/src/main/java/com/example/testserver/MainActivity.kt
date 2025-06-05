@@ -49,6 +49,10 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, PicAudioActivity::class.java))
         }
 
+        statsButton.setOnClickListener {
+            startActivity(Intent(this, StatsActivity::class.java))
+        }
+
         settingsButton.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }

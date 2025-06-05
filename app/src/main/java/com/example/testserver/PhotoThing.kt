@@ -32,6 +32,7 @@ class PhotoThing(private val photoFile: File) {
         description = "Reload latest photo from disk"
     )
     fun refresh() {
+        ServientStats.logRequest("photoThing", "refresh")
         loadPhoto()
     }
 

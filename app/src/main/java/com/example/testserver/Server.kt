@@ -108,6 +108,7 @@ class Server(
                 val sensorType = type
                 if (sensorValuesCount == 1) {
                     setPropertyReadHandler("value") {
+                        ServientStats.logRequest(thingId, "readProperty")
                         val v = readSensorValues(context, sensorType)
                         InteractionInput.Value(jsonNodeFactory.numberNode(v.getOrNull(0) ?: -1f))
                     }
@@ -115,6 +116,7 @@ class Server(
                     for (i in 0 until sensorValuesCount) {
                         val propName = listOf("x", "y", "z").getOrNull(i) ?: "v$i"
                         setPropertyReadHandler(propName) {
+                            ServientStats.logRequest(thingId, "readProperty")
                             val v = readSensorValues(context, sensorType)
                             InteractionInput.Value(jsonNodeFactory.numberNode(v.getOrNull(i) ?: -1f))
                         }
