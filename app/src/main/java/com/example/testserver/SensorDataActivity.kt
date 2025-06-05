@@ -21,8 +21,8 @@ import kotlinx.coroutines.withContext
 
 class SensorDataActivity : AppCompatActivity() {
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val sensorClients = mutableMapOf<String, SingleValueSensorClient>()
-    private val sensorViews = mutableMapOf<String, TextView>()
+    private val sensorClients = mutableMapOf<String, MultiValueSensorClient>()
+    private val sensorViews = mutableMapOf<String, MutableMap<String, TextView>>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,20 +50,32 @@ class SensorDataActivity : AppCompatActivity() {
 
                     val thingId = sanitizeSensorName(sensor.name, sensor.type)
                     val url = "http://localhost:8080/$thingId"
-                    val client = SingleValueSensorClient(wot, url)
+                    val client = MultiValueSensorClient(wot, url)
                     try {
                         client.connect()
                         Log.d("DEBUG", "Trying to connect to: $url (sensor: ${sensor.name})")
                         sensorClients[thingId] = client
 
                         withContext(Dispatchers.Main) {
-                            val textView = TextView(this@SensorDataActivity).apply {
+                            val propertyViews = mutableMapOf<String, TextView>()
+                            val titleView = TextView(this@SensorDataActivity).apply {
                                 textSize = 16f
-                                text = "${sensor.name}: caricamento... "
-                                setPadding(8, 16, 8, 16)
+                                text = "${sensor.name}:"
+                                setPadding(8, 24, 8, 8)
                             }
-                            sensorViews[thingId] = textView
-                            sensorDataContainer.addView(textView)
+                            sensorDataContainer.addView(titleView)
+
+                            val values = client.getAllSensorValues()
+                            for((prop, _) in values) {
+                                val valueView = TextView(this@SensorDataActivity).apply {
+                                    textSize = 16f
+                                    text = "$prop: ..."
+                                    setPadding(16, 4, 8, 4)
+                                }
+                                sensorDataContainer.addView(valueView)
+                                propertyViews[prop] = valueView
+                            }
+                            sensorViews[thingId] = propertyViews
                         }
                     } catch (e: Exception) {
                         Log.e("DEBUG", "Errore connessione a &url", e)
@@ -104,13 +116,16 @@ class SensorDataActivity : AppCompatActivity() {
     private suspend fun updateAllSensorValues() {
         for ((thingId, client) in sensorClients) {
             try {
-                val value = client.getSensorValue()
+                val values = client.getAllSensorValues()
                 withContext(Dispatchers.Main) {
-                    sensorViews[thingId]?.text = "$thingId: $value"
+                    val views = sensorViews[thingId]
+                    values.forEach { (prop, value) ->
+                        views?.get(prop)?.text = "$prop: $value"
+                    }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    sensorViews[thingId]?.text = "$thingId: errore"
+                    sensorViews[thingId]?.values?.forEach { it.text = "errore" }
                 }
             }
         }

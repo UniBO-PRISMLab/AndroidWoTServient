@@ -79,27 +79,45 @@ class Server(
 
             if (thingId in activeThings) continue
 
+            val sensorValuesCount = getSensorValuesCount(type)
+            val units = getSensorUnits(type)
             val thing = wot.produce {
                 id = thingId
                 title = name
                 description = "Thing for sensor $name, type: $type"
 
-                numberProperty("value") {
-                    title = "Sensor value"
-                    readOnly = true
-                    observable = true
-                    unit = getSensorUnit(type)
+                if (sensorValuesCount == 1) {
+                    numberProperty("value") {
+                        title = "Sensor value"
+                        readOnly = true
+                        observable = true
+                        unit = units.getOrNull(0)
+                    }
+                } else {
+                    for (i in 0 until sensorValuesCount) {
+                        val propName = listOf("x", "y", "z").getOrNull(i) ?: "v$i"
+                        numberProperty(propName) {
+                            title = "Component $propName"
+                            readOnly = true
+                            observable = true
+                            unit = units.getOrNull(i)
+                        }
+                    }
                 }
             }.apply {
                 val sensorType = type
-                setPropertyReadHandler("value") { input ->
-                    try {
-                        val sensorValue = readSensorValue(context, sensorType)
-                        val jsonNode = jsonNodeFactory.numberNode(sensorValue)
-                        InteractionInput.Value(jsonNode)
-                    } catch (e: Exception) {
-                        val errorNode = jsonNodeFactory.numberNode(-1f)
-                        InteractionInput.Value(errorNode)
+                if (sensorValuesCount == 1) {
+                    setPropertyReadHandler("value") {
+                        val v = readSensorValues(context, sensorType)
+                        InteractionInput.Value(jsonNodeFactory.numberNode(v.getOrNull(0) ?: -1f))
+                    }
+                } else {
+                    for (i in 0 until sensorValuesCount) {
+                        val propName = listOf("x", "y", "z").getOrNull(i) ?: "v$i"
+                        setPropertyReadHandler(propName) {
+                            val v = readSensorValues(context, sensorType)
+                            InteractionInput.Value(jsonNodeFactory.numberNode(v.getOrNull(i) ?: -1f))
+                        }
                     }
                 }
             }
@@ -126,6 +144,19 @@ class Server(
         return newlyAdded
     }
 
+    private fun getSensorValuesCount(sensorType: Int): Int = when (sensorType) {
+        Sensor.TYPE_ACCELEROMETER,
+        Sensor.TYPE_GRAVITY,
+        Sensor.TYPE_GYROSCOPE,
+        Sensor.TYPE_MAGNETIC_FIELD -> 3
+
+        Sensor.TYPE_ROTATION_VECTOR -> 4
+        Sensor.TYPE_GAME_ROTATION_VECTOR -> 4
+        Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR -> 5
+
+        else -> 1
+    }
+
     private fun sanitizeSensorName(name: String, type: Int): String {
         val sanitizedName = name.lowercase()
             .replace("\\s+".toRegex(), "-")
@@ -133,17 +164,17 @@ class Server(
         return "$sanitizedName-$type"
     }
 
-    fun readSensorValue(context: Context, sensorType: Int): Float {
+    fun readSensorValues(context: Context, sensorType: Int): FloatArray {
         val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        val sensor = sensorManager.getDefaultSensor(sensorType) ?: return -1f
+        val sensor = sensorManager.getDefaultSensor(sensorType) ?: return floatArrayOf()
 
         val latch = CountDownLatch(1)
-        var value = -1f
+        var values: FloatArray = floatArrayOf()
 
         val listener = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent?) {
                 if (event != null) {
-                    value = event.values[0]
+                    values = event.values.copyOf()
                     latch.countDown()
                     sensorManager.unregisterListener(this)
                 }
@@ -161,18 +192,18 @@ class Server(
         }
 
         sensorManager.unregisterListener(listener)
-        return value
+        return values
     }
 
-    fun getSensorUnit(type: Int): String? = when (type) {
-        Sensor.TYPE_LIGHT -> "lux"
-        Sensor.TYPE_PRESSURE -> "hPa"
-        Sensor.TYPE_ACCELEROMETER -> "m/s^2"
-        Sensor.TYPE_MAGNETIC_FIELD -> "μT"
-        Sensor.TYPE_PROXIMITY -> "cm"
-        Sensor.TYPE_AMBIENT_TEMPERATURE -> "°C"
-        Sensor.TYPE_RELATIVE_HUMIDITY -> "%"
-        else -> null
+    fun getSensorUnits(type: Int): List<String?> = when (type) {
+        Sensor.TYPE_LIGHT -> listOf("lux")
+        Sensor.TYPE_PRESSURE -> listOf("hPa")
+        Sensor.TYPE_ACCELEROMETER -> listOf("m/s^2")
+        Sensor.TYPE_MAGNETIC_FIELD -> listOf("μT")
+        Sensor.TYPE_PROXIMITY -> listOf("cm")
+        Sensor.TYPE_AMBIENT_TEMPERATURE -> listOf("°C")
+        Sensor.TYPE_RELATIVE_HUMIDITY -> listOf("%")
+        else -> listOf(null)
     }
 
 
