@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.IBinder
+import android.preference.PreferenceManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
@@ -18,31 +19,45 @@ import org.eclipse.thingweb.Servient
 import org.eclipse.thingweb.Wot
 import org.eclipse.thingweb.binding.http.HttpProtocolClientFactory
 import org.eclipse.thingweb.binding.http.HttpProtocolServer
+import androidx.core.content.edit
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class WoTService : Service() {
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private lateinit var servient: Servient
-    private lateinit var wot: Wot
-    private lateinit var server: Server
+    private var servient: Servient? = null
+    private var wot: Wot? = null
+    private var server: Server? = null
+
+    // Mutex per evitare race condition?
+    private val serverMutex = Mutex()
+    private var isServerRunning = false
 
     private val preferenceReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == "PREFERENCES_UPDATED") {
                 val updatedType = intent.getStringExtra("update_type") ?: ""
                 coroutineScope.launch {
-                    when (updatedType) {
-                        "port" -> {
-                            // Cambio porta --> stop e riavvio
-                            stopWoTServer()
-                            startWoTServer()
-                        }
-                        "sensors" -> {
-                            // Aggiunta/rimozione sensori --> niente stop
-                            server.updateExposedThings()
-                        }
-                        else -> {
-                            // Default
-                            server.updateExposedThings()
+                    serverMutex.withLock {
+                        when (updatedType) {
+                            "port" -> {
+                                // Cambio porta --> stop e riavvio
+                                stopWoTServerInternal()
+                                Log.d("SERVER", "Riavvio Server")
+                                delay(1000)
+                                startWoTServerInternal()
+                                Log.d("SERVER", "Server riattivo!")
+                            }
+                            "sensors" -> {
+                                // Aggiunta/rimozione sensori --> niente stop
+                                server?.updateExposedThings()
+                                Log.d("SERVER", "Server aggiornato!")
+                            }
+                            else -> {
+                                // Default
+                                server?.updateExposedThings()
+                            }
                         }
                     }
                 }
@@ -57,30 +72,47 @@ class WoTService : Service() {
         ServientStatsPrefs.load(applicationContext)
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Context.RECEIVER_NOT_EXPORTED else 0
         registerReceiver(preferenceReceiver, IntentFilter("PREFERENCES_UPDATED"), flags)
-        startWoTServer()
+        coroutineScope.launch {
+            startWoTServer()
+        }
     }
 
-    private fun startWoTServer() {
-        coroutineScope.launch {
-            try {
-                // server_settings l'ho scelto io ora
-                val prefs = getSharedPreferences("server_settings", Context.MODE_PRIVATE)
-                val port = prefs.getString("server_port", "8080")?.toIntOrNull() ?: 8080
+    private suspend fun startWoTServer() {
+        serverMutex.withLock {
+            startWoTServerInternal()
+        }
+    }
 
-                servient = Servient(
-                    servers = listOf(HttpProtocolServer(bindPort = port)),
-                    clientFactories = listOf(HttpProtocolClientFactory())
-                )
-                wot = Wot.create(servient)
-                WoTClientHolder.wot = wot
-                servient.start()
-
-                server = Server(wot, servient, applicationContext)
-                server.start()
-            } catch (e: Exception) {
-                Log.e("WOT_SERVICE", "Errore Avvio Server!")
-                e.printStackTrace()
+    private suspend fun startWoTServerInternal() {
+        try {
+            if (isServerRunning) {
+                Log.d("SERVER", "Server già in esecuzione!")
+                return
             }
+
+            stopWoTServerInternal()
+            val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
+            val port = prefs.getString("server_port", "8080")?.toIntOrNull() ?: 8080
+            Log.d("SERVER", "Avvio Server sulla porta $port")
+
+            servient = Servient(
+                servers = listOf(HttpProtocolServer(bindPort = port)),
+                clientFactories = listOf(HttpProtocolClientFactory())
+            )
+
+            wot = Wot.create(servient!!)
+            WoTClientHolder.wot = wot
+            servient!!.start()
+
+            server = Server(wot!!, servient!!, applicationContext)
+            server!!.start()
+
+            isServerRunning = true
+            prefs.edit().putBoolean("server_started", true).apply()
+            Log.d("SERVER", "Server avviato con successo sulla porta $port")
+        } catch (e: Exception) {
+            Log.e("WOT_SERVICE", "Errore durante avvio server: ", e)
+            stopWoTServerInternal()
         }
     }
 
@@ -112,10 +144,17 @@ class WoTService : Service() {
     }
 
     override fun onDestroy() {
-        unregisterReceiver(preferenceReceiver)
-        coroutineScope.cancel()
-        // Salvo stats
-        ServientStatsPrefs.save(applicationContext)
+        try {
+            unregisterReceiver(preferenceReceiver)
+        } catch (e: Exception) {
+            Log.e("WOT_SERVICE", "Errore durante unregister receiver: ", e)
+        }
+        coroutineScope.launch {
+            stopWoTServer()
+            // Salvo stats
+            ServientStatsPrefs.save(applicationContext)
+            coroutineScope.cancel()
+        }
         super.onDestroy()
     }
 
@@ -131,11 +170,45 @@ class WoTService : Service() {
     }
 
     private suspend fun stopWoTServer() {
-        try {
-            server.stop()
-            servient.shutdown()
-        } catch (e: Exception) {
-            Log.e("WOT_SERVICE", "Errore durante stop server!: ", e)
+        serverMutex.withLock {
+            stopWoTServerInternal()
         }
     }
+
+    private suspend fun stopWoTServerInternal() {
+        try {
+            if (!isServerRunning) {
+                Log.d("SERVER", "Server già fermo, skip..")
+                return
+            }
+            Log.d("SERVER", "Fermando Server..")
+            server?.let {
+                try {
+                    it.stop()
+                    Log.d("SERVER", "Server fermo")
+                } catch (e: Exception) {
+                    Log.e("SERVER", "Errore durante stop server: ", e)
+                }
+            }
+            server = null
+
+            servient?.let {
+                try {
+                    it.shutdown()
+                    Log.d("SERVER", "Servient fermato")
+                } catch (e: Exception) {
+                    Log.e("SERVER", "Errore durante shutdown servient: ", e)
+                }
+            }
+            servient = null
+            wot = null
+            isServerRunning = false
+            val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
+            prefs.edit{putBoolean("server_started", false)}
+            Log.d("SERVER", "Stop completo!")
+        } catch (e: Exception) {
+            Log.e("WOT_SERVICE", "Errore durante stop server: ", e)
+        }
+    }
+
 }

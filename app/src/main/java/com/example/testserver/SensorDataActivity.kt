@@ -16,6 +16,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -38,6 +39,16 @@ class SensorDataActivity : AppCompatActivity() {
                 connectionStatus.text = "In connessione.."
                 progressBar.visibility = View.VISIBLE
             }
+            val serverReady = waitForServerStart()
+            if(!serverReady) {
+                withContext(Dispatchers.Main) {
+                    connectionStatus.text = "Server non disponibile dopo il timeout!"
+                    progressBar.visibility = View.GONE
+                }
+                Log.e("DEBUG", "Server non disponibile dopo timeout")
+                return@launch
+            }
+
             try {
                 val wot = WoTClientHolder.wot!!
                 val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this@SensorDataActivity)
@@ -79,7 +90,7 @@ class SensorDataActivity : AppCompatActivity() {
                             sensorViews[thingId] = propertyViews
                         }
                     } catch (e: Exception) {
-                        Log.e("DEBUG", "Errore connessione a &url", e)
+                        Log.e("DEBUG", "Errore connessione a $url", e)
                         withContext(Dispatchers.Main) {
                             val textView = TextView(this@SensorDataActivity).apply {
                                 textSize = 16f
@@ -146,5 +157,14 @@ class SensorDataActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         coroutineScope.cancel()
+    }
+
+    private suspend fun waitForServerStart(maxRetries: Int = 10, delayMillis: Long = 500): Boolean {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this@SensorDataActivity)
+        repeat(maxRetries) {
+            if (prefs.getBoolean("server_started", false)) return true
+            delay(delayMillis)
+        }
+        return false
     }
 }

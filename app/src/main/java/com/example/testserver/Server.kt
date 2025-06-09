@@ -25,6 +25,9 @@ class Server(
     private val jsonNodeFactory = JsonNodeFactory.instance
     private val activeThings = mutableMapOf<String, WoTExposedThing>()
 
+    private var photoThingId: String? = null
+    private var audioThingId: String? = null
+
     suspend fun start(): List<WoTExposedThing> {
         val exposedThings = mutableListOf<WoTExposedThing>()
         updateExposedThings().forEach {
@@ -38,10 +41,12 @@ class Server(
         val exposedPhoto =
             ExposedThingBuilder.createExposedThing(wot, photoThing!!, PhotoThing::class)
         if (exposedPhoto != null) {
+            photoThingId = exposedPhoto.getThingDescription().id
             servient.addThing(exposedPhoto)
-            servient.expose(exposedPhoto.getThingDescription().id)
+            servient.expose(photoThingId!!)
             exposedThings.add(exposedPhoto)
             MediaThings.photoThing = photoThing
+            Log.d("SERVER", "PhotoThing esposto con ID: $photoThingId")
         }
 
         // Audio Record Thing
@@ -50,10 +55,12 @@ class Server(
         val exposedAudio =
             ExposedThingBuilder.createExposedThing(wot, audioThing!!, AudioThing::class)
         if (exposedAudio != null) {
+            audioThingId = exposedAudio.getThingDescription().id
             servient.addThing(exposedAudio)
-            servient.expose(exposedAudio.getThingDescription().id)
+            servient.expose(audioThingId!!)
             exposedThings.add(exposedAudio)
             MediaThings.audioThing = audioThing
+            Log.d("SERVER", "AudioThing esposto con ID: $audioThingId")
         }
 
         return exposedThings
@@ -81,6 +88,7 @@ class Server(
 
             val sensorValuesCount = getSensorValuesCount(type)
             val units = getSensorUnits(type)
+            // TODO: PROBLEMA QUA -- NON PRODUCO A LOCALHOST:$PORT MA SEMPRE LOCALHOST:8080
             val thing = wot.produce {
                 id = thingId
                 title = name
@@ -124,12 +132,15 @@ class Server(
                 }
             }
 
-
-            servient.addThing(thing)
-            servient.expose(thingId)
-            activeThings[thingId] = thing
-            newlyAdded.add(thing)
-            Log.d("SERVER_UPDATE", "Added Thing: $thingId")
+            try {
+                servient.addThing(thing)
+                servient.expose(thingId)
+                activeThings[thingId] = thing
+                newlyAdded.add(thing)
+                Log.d("SERVER_UPDATE", "Added Thing: $thingId")
+            } catch (e: Exception) {
+                Log.e("SERVER_UPDATE", "Errore aggiunta Thing $thingId :", e)
+            }
         }
 
         val toRemove = activeThings.keys - wantedThingIds
@@ -209,9 +220,11 @@ class Server(
     }
 
     suspend fun stop() {
+        Log.d("SERVER_STOP", "Inizio stop server..")
         try {
+            val thingsToRemove = activeThings.keys.toList()
             // Cicla su tutti i Thing esposti e li distrugge nel Servient
-            for (thingId in activeThings.keys.toList()) {
+            for (thingId in thingsToRemove) {
                 try {
                     servient.destroy(thingId)
                     Log.d("SERVER_STOP", "Destroyed Thing: $thingId")
@@ -222,18 +235,18 @@ class Server(
             activeThings.clear()
 
             // Se hai Thing media esposti, rimuovili
-            photoThing?.let {
+            photoThingId?.let { id ->
                 try {
-                    servient.destroy("photo-thing")
+                    servient.destroy(id)
                     Log.d("SERVER_STOP", "Destroyed PhotoThing")
                 } catch (e: Exception) {
                     Log.e("SERVER_STOP", "Errore distruggendo PhotoThing", e)
                 }
             }
 
-            audioThing?.let {
+            audioThingId?.let { id ->
                 try {
-                    servient.destroy("audio-thing")
+                    servient.destroy(id)
                     Log.d("SERVER_STOP", "Destroyed AudioThing")
                 } catch (e: Exception) {
                     Log.e("SERVER_STOP", "Errore distruggendo AudioThing", e)
@@ -242,6 +255,12 @@ class Server(
 
             photoThing = null
             audioThing = null
+            photoThingId = null
+            audioThingId = null
+            MediaThings.photoThing = null
+            MediaThings.audioThing = null
+
+            Log.d("SERVER_STOP", "Stop server completo!")
 
         } catch (e: Exception) {
             Log.e("SERVER_STOP", "Errore durante stop Server", e)
