@@ -25,16 +25,7 @@ class MainActivity : AppCompatActivity() {
         val shareSensorsButton: Button = findViewById(R.id.shareSensorsButton)
         val settingsButton: Button = findViewById(R.id.settingsButton)
         val statsButton: Button = findViewById(R.id.statsButton)
-
-        // Prima di avviare foreground service devo chiedere permesso per notifica
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if(checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1)
-            }
-        }
-        // Avvia foreground service
-        val serviceIntent = Intent(this, WoTService::class.java)
-        startForegroundService(serviceIntent)
+        val startServerButton: Button = findViewById(R.id.startServerBtn)
 
         sensorListButton.setOnClickListener {
             startActivity(Intent(this, SensorListActivity::class.java))
@@ -58,6 +49,10 @@ class MainActivity : AppCompatActivity() {
 
         settingsButton.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
+        }
+
+        startServerButton.setOnClickListener {
+            startActivity(Intent(this, StartServerActivity::class.java))
         }
     }
 

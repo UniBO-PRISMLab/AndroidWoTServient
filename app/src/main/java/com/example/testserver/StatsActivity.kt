@@ -1,5 +1,6 @@
 package com.example.testserver
 
+import android.graphics.Color
 import android.os.Bundle
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -30,13 +31,23 @@ class StatsActivity : AppCompatActivity() {
     }
 
     private fun setupPieChart() {
-        val entries = ServientStats.requestCounts.map { (thing, count) ->
+        val entries = getSafeRequestCount().map {(thing, count) ->
             PieEntry(count.toFloat(), thing)
         }
 
+        pieChart.description.isEnabled = false
         val dataSet = PieDataSet(entries, "Accessi per Thing")
         dataSet.setColors(ColorTemplate.MATERIAL_COLORS.toList())
-        pieChart.data = PieData(dataSet)
+        val data = PieData(dataSet)
+        data.setDrawValues(true)
+        data.setValueTextSize(12f)
+        data.setValueTextColor(Color.WHITE)
+        pieChart.data = data
+        pieChart.setUsePercentValues(true)
+        pieChart.centerText = "Distribuzione Accessi"
+        pieChart.setEntryLabelColor(Color.BLACK)
+        pieChart.setEntryLabelTextSize(12f)
+        pieChart.animateY(1000)
         pieChart.invalidate()
     }
 
@@ -46,11 +57,28 @@ class StatsActivity : AppCompatActivity() {
         }
 
         val labels = ServientStats.interactionTypes.keys.toList()
-        val dataSet = BarDataSet(entries, "Tipo di Interazione")
-        dataSet.colors = ColorTemplate.COLORFUL_COLORS.toList()
-        barChart.data = BarData(dataSet)
+        barChart.description.isEnabled = false
+        barChart.setFitBars(true)
+        barChart.axisRight.isEnabled = false
+        barChart.axisLeft.axisMinimum = 0f
+        barChart.xAxis.labelRotationAngle = -45f // evitare sovrapposizioni
+        barChart.legend.isEnabled = true
         barChart.xAxis.valueFormatter = IndexAxisValueFormatter(labels)
         barChart.xAxis.granularity = 1f
+        val dataSet = BarDataSet(entries, "Tipo di Interazione")
+        dataSet.colors = ColorTemplate.COLORFUL_COLORS.toList()
+        val data = BarData(dataSet)
+        data.setValueTextSize(12f)
+        barChart.data = data
+        barChart.animateY(1000)
         barChart.invalidate()
+    }
+
+    private fun getSafeRequestCount(): Map<String, Int> {
+        return if (ServientStats.requestCounts.isEmpty()) {
+            mapOf("Default" to 5)
+        } else {
+            ServientStats.requestCounts
+        }
     }
 }

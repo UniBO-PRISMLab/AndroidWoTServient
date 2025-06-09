@@ -56,4 +56,10 @@
         android:layout_height="wrap_content"
         android:text="Impostazioni" />
 
+    <Button
+        android:id="@+id/startServerBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Avvia Server" />
+
 </LinearLayout>
