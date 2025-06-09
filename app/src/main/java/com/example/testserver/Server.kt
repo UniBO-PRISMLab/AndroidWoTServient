@@ -5,6 +5,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorManager
 import android.hardware.SensorEventListener
+import android.preference.PreferenceManager
 import android.util.Log
 import com.fasterxml.jackson.databind.node.JsonNodeFactory
 import org.eclipse.thingweb.Servient
@@ -29,9 +30,18 @@ class Server(
     private var audioThingId: String? = null
 
     suspend fun start(): List<WoTExposedThing> {
+        // Stop eventuali Thing attivi
+        stop()
+
         val exposedThings = mutableListOf<WoTExposedThing>()
-        updateExposedThings().forEach {
-            exposedThings.add(it)
+
+        // Creo Thing smartphone con tutte le affordances dei sensori abilitati
+        val smartphoneThing = createSmartphoneThing()
+        if(smartphoneThing != null) {
+            servient.addThing(smartphoneThing)
+            servient.expose(smartphoneThing.getThingDescription().id)
+            exposedThings.add(smartphoneThing)
+            Log.d("SERVER", "SmartphoneThing esposto con ID: ${smartphoneThing.getThingDescription().id}")
         }
 
         // Aggiungi Thing multimediali una sola volta
@@ -64,6 +74,95 @@ class Server(
         }
 
         return exposedThings
+    }
+
+    private fun createSmartphoneThing() : WoTExposedThing? {
+        val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        val availableSensors = sensorManager.getSensorList(Sensor.TYPE_ALL)
+        val jsonNodeFactory = JsonNodeFactory.instance
+        val thingId = "smartphone"
+        val thingTitle = "Smartphone sensors"
+        val thingDescription = "Thing representing selected sensors of the smartphone"
+
+        // Controlla se ci sono sensori abilitati
+        val enabledSensors = availableSensors.filter { sensor ->
+            val prefKey = "share_sensor_${sensor.name}"
+            sharedPrefs.getBoolean(prefKey, false)
+        }
+        if (enabledSensors.isEmpty()) {
+            Log.d("SERVER", "Nessun sensore abilitato!")
+            return null
+        }
+
+        val thing = wot.produce {
+            id = thingId
+            title = thingTitle
+            description = thingDescription
+
+            // Aggiungi proprietà per ogni sensore abilitato
+            for (sensor in enabledSensors) {
+                val type = sensor.type
+                val name = sensor.name
+                val sensorValuesCount = getSensorValuesCount(type)
+                val units = getSensorUnits(type)
+                if (sensorValuesCount == 1) {
+                    val propName = sanitizeSensorName(name, type)
+                    numberProperty(propName) {
+                        title = name
+                        readOnly = true
+                        observable = true
+                        unit = units.getOrNull(0)
+                    }
+                } else {
+                    for (i in 0 until sensorValuesCount) {
+                        val suffix = listOf("x", "y", "z", "w", "v").getOrNull(i) ?: "v$i"
+                        val propName = "${sanitizeSensorName(name, type)}_$suffix"
+                        numberProperty(propName) {
+                            title = "$name $suffix"
+                            readOnly = true
+                            observable = true
+                            unit = units.getOrNull(i)
+                        }
+                    }
+                }
+            }
+        }.apply {
+            // Aggiungi i property read handlers
+            for (sensor in enabledSensors) {
+                val type = sensor.type
+                val name = sensor.name
+                val sensorValuesCount = getSensorValuesCount(type)
+                if (sensorValuesCount == 1) {
+                    val propName = sanitizeSensorName(name, type)
+                    setPropertyReadHandler(propName) {
+                        ServientStats.logRequest(thingId, "readProperty")
+                        val v = readSensorValues(context, type)
+                        InteractionInput.Value(jsonNodeFactory.numberNode(v.getOrNull(0) ?: -1f))
+                    }
+                } else {
+                    for (i in 0 until sensorValuesCount) {
+                        val suffix = listOf("x", "y", "z", "w", "v").getOrNull(i) ?: "v$i"
+                        val propName = "${sanitizeSensorName(name, type)}_$suffix"
+                        setPropertyReadHandler(propName) {
+                            ServientStats.logRequest(thingId, "readProperty")
+                            val v = readSensorValues(context, type)
+                            InteractionInput.Value(jsonNodeFactory.numberNode(v.getOrNull(i) ?: -1f))
+                        }
+                    }
+                }
+            }
+        }
+
+        try {
+            return thing
+        } catch (e: Exception) {
+            Log.e("SERVER", "Errore creazione SmartphoneThing", e)
+            return null
+        }
+
+
+
     }
 
     suspend fun updateExposedThings(): List<WoTExposedThing> {

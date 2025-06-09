@@ -7,6 +7,7 @@ import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.os.Bundle
 import android.util.Log
+import androidx.core.content.ContextCompat
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
 import androidx.preference.PreferenceScreen
@@ -24,6 +25,8 @@ class DynamicSensorSettingsFragment : PreferenceFragmentCompat() {
                 Log.d("DYNAMIC_PREF", "Broadcast inviato per chiave: $key")
             }
         }
+
+    private var initialSensorPrefs: Map<String, Any?> = emptyMap()
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         val context = requireContext()
@@ -45,6 +48,8 @@ class DynamicSensorSettingsFragment : PreferenceFragmentCompat() {
             screen.addPreference(pref)
             Log.d("SENSOR_PREFS", "Added preference key: share_sensor_${sensor.name}")
         }
+
+        initialSensorPrefs = sharedPrefs.all.filterKeys { it.startsWith("share_sensor_") }
     }
 
     override fun onResume() {
@@ -57,5 +62,20 @@ class DynamicSensorSettingsFragment : PreferenceFragmentCompat() {
         super.onPause()
         PreferenceManager.getDefaultSharedPreferences(requireContext())
             .unregisterOnSharedPreferenceChangeListener(preferenceChangeListener)
+    }
+
+    override fun onStop() {
+        super.onStop()
+
+        val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        val currentSensorPrefs = sharedPrefs.all.filterKeys { it.startsWith("share_sensor_") }
+
+        if (currentSensorPrefs != initialSensorPrefs) {
+            // Solo se sono cambiate, allora riavvio
+            requireContext().stopService(Intent(requireContext(), WoTService::class.java))
+            val intent = Intent(requireContext(), WoTService::class.java)
+            ContextCompat.startForegroundService(requireContext(), intent)
+        }
+
     }
 }

@@ -22,8 +22,8 @@ import kotlinx.coroutines.withContext
 
 class SensorDataActivity : AppCompatActivity() {
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val sensorClients = mutableMapOf<String, MultiValueSensorClient>()
-    private val sensorViews = mutableMapOf<String, MutableMap<String, TextView>>()
+    private var sensorClient: MultiValueSensorClient? = null
+    private val propertyViews = mutableMapOf<String, TextView>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,108 +55,96 @@ class SensorDataActivity : AppCompatActivity() {
                 val sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
                 val sensorList = sensorManager.getSensorList(Sensor.TYPE_ALL)
 
+                val selectedProperties = mutableListOf<String>()
                 for (sensor in sensorList) {
                     val key = "share_sensor_${sensor.name}"
-                    if(!sharedPrefs.getBoolean(key, false)) continue
+                    if (!sharedPrefs.getBoolean(key, false)) continue
 
-                    val thingId = sanitizeSensorName(sensor.name, sensor.type)
-                    val port = sharedPrefs.getString("server_port", "8080")?.toIntOrNull() ?: 8080
-                    val url = "http://localhost:$port/$thingId"
-                    val client = MultiValueSensorClient(wot, url)
-                    try {
-                        client.connect()
-                        Log.d("DEBUG", "Trying to connect to: $url (sensor: ${sensor.name})")
-                        sensorClients[thingId] = client
+                    val sanitized = sensor.name.lowercase()
+                        .replace("\\s+".toRegex(), "-")
+                        .replace("[^a-z0-9\\-]".toRegex(), "") + "-${sensor.type}"
+                    val sensorType = sensor.type
+                    val numAxes = when (sensorType) {
+                        Sensor.TYPE_ACCELEROMETER, Sensor.TYPE_GYROSCOPE, Sensor.TYPE_GRAVITY, Sensor.TYPE_MAGNETIC_FIELD -> 3
+                        else -> 1
+                    }
 
-                        withContext(Dispatchers.Main) {
-                            val propertyViews = mutableMapOf<String, TextView>()
-                            val titleView = TextView(this@SensorDataActivity).apply {
-                                textSize = 16f
-                                text = "${sensor.name}:"
-                                setPadding(8, 24, 8, 8)
-                            }
-                            sensorDataContainer.addView(titleView)
-
-                            val values = client.getAllSensorValues()
-                            for((prop, _) in values) {
-                                val valueView = TextView(this@SensorDataActivity).apply {
-                                    textSize = 16f
-                                    text = "$prop: ..."
-                                    setPadding(16, 4, 8, 4)
-                                }
-                                sensorDataContainer.addView(valueView)
-                                propertyViews[prop] = valueView
-                            }
-                            sensorViews[thingId] = propertyViews
-                        }
-                    } catch (e: Exception) {
-                        Log.e("DEBUG", "Errore connessione a $url", e)
-                        withContext(Dispatchers.Main) {
-                            val textView = TextView(this@SensorDataActivity).apply {
-                                textSize = 16f
-                                text = "${sensor.name}: errore di connessione - ${e.message ?: "Errore sconosciuto"}"
-                                setPadding(8, 16, 8, 16)
-                            }
-                            sensorDataContainer.addView(textView)
-                        }
+                    if (numAxes == 1) {
+                        selectedProperties.add(sanitized)
+                    } else {
+                        selectedProperties.add("${sanitized}_x")
+                        selectedProperties.add("${sanitized}_y")
+                        selectedProperties.add("${sanitized}_z")
                     }
                 }
 
+                val port = sharedPrefs.getString("server_port", "8080")?.toIntOrNull() ?: 8080
+                val url = "http://localhost:$port/smartphone"
+                val client = MultiValueSensorClient(wot, url)
+                client.connect()
+                sensorClient = client
+
                 withContext(Dispatchers.Main) {
+                    val titleView = TextView(this@SensorDataActivity).apply {
+                        textSize = 18f
+                        text = "Smartphone: "
+                        setPadding(8, 24, 8, 8)
+                    }
+                    sensorDataContainer.addView(titleView)
+
+                    for (prop in selectedProperties) {
+                        val valueView = TextView(this@SensorDataActivity).apply {
+                            textSize = 16f
+                            text = "$prop: ..."
+                            setPadding(16, 4, 8, 4)
+                        }
+                        sensorDataContainer.addView(valueView)
+                        propertyViews[prop] = valueView
+                    }
+
                     connectionStatus.text = "Connesso!"
                     progressBar.visibility = View.GONE
-
                 }
 
-                updateAllSensorValues()
+                updateSensorValues()
 
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     connectionStatus.text = "Errore di connessione: ${e.message}"
                     progressBar.visibility = View.GONE
                 }
+                Log.e("DEBUG", "Errore durante la connessione: ", e)
             }
         }
 
         refreshButton.setOnClickListener {
             coroutineScope.launch {
-                updateAllSensorValues()
+                updateSensorValues()
             }
         }
     }
 
-    private suspend fun updateAllSensorValues() {
-        for ((thingId, client) in sensorClients) {
-            try {
-                val values = client.getAllSensorValues()
-                withContext(Dispatchers.Main) {
-                    val views = sensorViews[thingId]
-                    values.forEach { (prop, value) ->
-                        if(value == -1f) {
-                            views?.get(prop)?.text = "$prop: Sensore non presente/non funzionante"
+    private suspend fun updateSensorValues() {
+        val client = sensorClient ?: return
+        try {
+            val values = client.getAllSensorValues()
+            withContext(Dispatchers.Main) {
+                for ((prop, value) in values) {
+                    if (propertyViews.containsKey(prop)) {
+                        if (value == -1f) {
+                            propertyViews[prop]?.text = "$prop: Sensore non presente"
                         } else {
-                            views?.get(prop)?.text = "$prop: $value"
+                            propertyViews[prop]?.text = "$prop: $value"
                         }
                     }
                 }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    sensorViews[thingId]?.values?.forEach { it.text = "errore" }
-                }
+            }
+        } catch (e: Exception) {
+            withContext(Dispatchers.Main) {
+                propertyViews.values.forEach { it.text = "errore" }
             }
         }
-    }
 
-    private fun sanitizeSensorName(name: String, type: Int): String {
-        val sanitizedName = name.lowercase()
-            .replace("\\s+".toRegex(), "-")
-            .replace("[^a-z0-9\\-]".toRegex(), "")
-        return "$sanitizedName-$type"
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        coroutineScope.cancel()
     }
 
     private suspend fun waitForServerStart(maxRetries: Int = 10, delayMillis: Long = 500): Boolean {
@@ -166,5 +154,10 @@ class SensorDataActivity : AppCompatActivity() {
             delay(delayMillis)
         }
         return false
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        coroutineScope.cancel()
     }
 }
