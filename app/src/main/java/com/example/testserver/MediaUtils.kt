@@ -3,15 +3,23 @@ package com.example.testserver
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.provider.MediaStore
+import android.util.Base64
 import android.util.Log
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 
+// TODO: togliere setCurrentActivity e cambiare..
+
 object MediaUtils {
-    private var recorder: MediaRecorder? = null
+    private var mediaRecorder: MediaRecorder? = null
+    private var audioFilePath: String? = null
+    private var isRecording = false
     private var currentActivity: Activity? = null
+    private var mediaPlayer: MediaPlayer? = null
 
     const val REQUEST_IMAGE_CAPTURE = 1
 
@@ -43,41 +51,97 @@ object MediaUtils {
         }
     }
 
-    fun recordAudio(context: Context) {
-        stopRecording() // Stop eventuali registrazioni precedenti
+    fun startAudioRecording(context: Context) {
+        if (isRecording) {
+            Log.w("AUDIO", "Registrazione già in corso!")
+            return
+        }
 
-        val audioFile = File(context.externalCacheDir, "audio.3gp")
-        recorder = MediaRecorder().apply {
+        audioFilePath = "${context.externalCacheDir?.absolutePath}/recorded_audio.3gp"
+        mediaRecorder = MediaRecorder().apply {
+            setAudioSource(MediaRecorder.AudioSource.MIC)
+            setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
+            setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
+            setOutputFile(audioFilePath)
             try {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
-                setOutputFile(audioFile.absolutePath)
                 prepare()
                 start()
+                isRecording = true
                 Log.d("MediaUtils", "Registrazione audio iniziata")
-            } catch (e: IOException) {
-                Log.e("MediaUtils", "Errore preparando MediaRecorder", e)
-                release()
+            } catch (e: kotlinx.io.IOException) {
+                Log.e("AUDIO", "prepare() failed: ", e)
+                isRecording = false
             }
         }
-
-        // Stop dopo 5 secondi (puoi cambiare la durata)
-        android.os.Handler(context.mainLooper).postDelayed({
-            stopRecording()
-        }, 5000)
     }
 
-    private fun stopRecording() {
-        recorder?.apply {
-            try {
-                stop()
-                release()
-                Log.d("MediaUtils", "Registrazione audio terminata")
-            } catch (e: Exception) {
-                Log.e("MediaUtils", "Errore terminando la registrazione", e)
-            }
+    fun stopAudioRecording(): String? {
+        if (!isRecording) {
+            Log.w("AUDIO", "Nessuna registrazione da stoppare!")
+            return null
         }
-        recorder = null
+        try {
+            mediaRecorder?.stop()
+            mediaRecorder?.release()
+            mediaRecorder = null
+            isRecording = false
+            Log.d("AUDIO", "Registrazione stoppata")
+            val audioFile = audioFilePath?.let { File(it) }
+            if (audioFile != null && audioFile.exists()) {
+                val bytes = audioFile.readBytes()
+                val base64Audio = Base64.encodeToString(bytes, Base64.DEFAULT)
+                Log.d("AUDIO", "Audio convertito in base64")
+                return base64Audio
+            } else {
+                Log.e("AUDIO", "File audio non trovato!: ")
+                return null
+            }
+        } catch (e: Exception) {
+            Log.e("AUDIO", "Errore durante stop o lettura audio: ", e)
+            return null
+        }
+    }
+
+    fun playAudio(base64Audio: String, context: Context) {
+        if (base64Audio.isEmpty()) {
+            Log.w("AUDIO", "Nessun audio da riprodurre")
+            return
+        }
+
+        mediaPlayer?.release()
+        mediaPlayer = null
+
+        try {
+            val audioBytes = Base64.decode(base64Audio, Base64.DEFAULT)
+            val tmpAudioFile = File(context.cacheDir, "tmp_audio.3gp")
+            FileOutputStream(tmpAudioFile).use { fos ->
+                fos.write(audioBytes)
+            }
+            Log.d("AUDIO", "Audio decodificato e salvato!")
+            mediaPlayer = MediaPlayer().apply {
+                setDataSource(tmpAudioFile.absolutePath)
+                prepare()
+                start()
+                Log.d("AUDIO", "Riproduzione audio avviata!")
+                setOnCompletionListener { mp ->
+                    mp.release() // Rilascia le risorse una volta completata la riproduzione
+                    tmpAudioFile.delete() // Cancella il file temporaneo
+                    mediaPlayer = null
+                    Log.d("AUDIO", "Riproduzione audio completata e MediaPlayer rilasciato.")
+                }
+                setOnErrorListener { mp, what, extra ->
+                    Log.e("AUDIO", "Errore MediaPlayer: what=$what, extra=$extra")
+                    mp.release()
+                    tmpAudioFile.delete()
+                    mediaPlayer = null
+                    currentActivity?.runOnUiThread {
+                        android.widget.Toast.makeText(context, "Errore durante la riproduzione dell'audio.", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                    true // Indica che l'errore è stato gestito
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("AUDIO", "Errore durante decodfica o riproduzione: ", e)
+        }
     }
 }

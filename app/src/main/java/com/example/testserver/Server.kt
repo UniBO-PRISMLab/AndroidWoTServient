@@ -35,6 +35,7 @@ class Server(
     private var audioThingId: String? = null
 
     private var currentPhotoBase64: String = ""
+    private var currentAudioBase64: String = ""
 
     suspend fun start(): List<WoTExposedThing> {
         // Stop eventuali Thing attivi
@@ -118,11 +119,7 @@ class Server(
             action<String, Unit>("updatePhoto") {
                 title = "Update photo property"
                 description = "Updates the 'photo' property with a new Base64 encoded image"
-                input = stringSchema{/*
-                    title = "Action Input"
-                    minLength = 1
-                    default = "test"*/
-                }
+                input = stringSchema{}
             }
             stringProperty("audio") {
                 title = "Last recorded audio"
@@ -133,6 +130,10 @@ class Server(
             action<Unit, Unit>("startRecording") {
                 title = "Start recording audio"
                 description = "Start recording and updates audio property"
+            }
+            action<String, Unit>("stopRecording") {
+                title = "Stop recording"
+                description = "Stop recording and updates 'audio' property"
             }
         }.apply {
             // Aggiungi i property read handlers
@@ -190,15 +191,31 @@ class Server(
             }
             setPropertyReadHandler("audio") {
                 ServientStats.logRequest(thingId, "readProperty")
-                val audioFile = File(context.externalCacheDir, "audio.3gp")
-                val audioBytes = audioFile.takeIf { it.exists() }?.readBytes()
-                val base64 = audioBytes?.let { android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP) } ?: ""
-                InteractionInput.Value(jsonNodeFactory.textNode(base64))
+                InteractionInput.Value(jsonNodeFactory.textNode(currentAudioBase64))
             }
             setActionHandler("startRecording"){ _: WoTInteractionOutput, _: InteractionOptions? ->
                 ServientStats.logRequest(thingId, "invokeAction")
-                MediaUtils.recordAudio(context)
-                null
+                MediaUtils.startAudioRecording(context)
+                InteractionInput.Value(jsonNodeFactory.nullNode())
+            }
+            setActionHandler("stopRecording") { _: WoTInteractionOutput, _: InteractionOptions? ->
+                ServientStats.logRequest(thingId, "invokeAction")
+                val recordedAudioBase64 = MediaUtils.stopAudioRecording()
+                if (recordedAudioBase64 != null) {
+                    currentAudioBase64 = recordedAudioBase64
+                    Log.d("SERVER", "Proprietà 'audio' aggiornata con nuovo audio Base64. Lunghezza: ${recordedAudioBase64.length}")
+                    val audioFile = File(context.externalCacheDir, "recorded_audio.3gp")
+                    try {
+                        val bytes = Base64.decode(recordedAudioBase64, Base64.DEFAULT)
+                        audioFile.writeBytes(bytes)
+                        Log.d("SERVER", "Audio Base64 salvato su disco.")
+                    } catch (e: Exception) {
+                        Log.e("SERVER", "Errore salvando l'audio Base64 su disco", e)
+                    }
+                } else {
+                    Log.e("SERVER", "Errore: Input Base64 per updateAudio è nullo.")
+                }
+                InteractionInput.Value(jsonNodeFactory.nullNode())
             }
         }
 

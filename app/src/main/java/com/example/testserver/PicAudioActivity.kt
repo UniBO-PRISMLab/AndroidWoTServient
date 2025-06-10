@@ -27,6 +27,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.eclipse.thingweb.Wot
 import org.eclipse.thingweb.thing.schema.WoTConsumedThing
 import java.io.File
@@ -40,6 +41,8 @@ class PicAudioActivity : AppCompatActivity() {
     private lateinit var audioTextView: TextView
     private lateinit var takePhotoButton: Button
     private lateinit var startRecordingButton: Button
+    private lateinit var stopRecordingButton: Button
+    private lateinit var playAudioButton: Button
 
     private val coroutineScope = CoroutineScope(Dispatchers.Main + Job())
     private val jsonNodeFactory = JsonNodeFactory.instance
@@ -58,6 +61,9 @@ class PicAudioActivity : AppCompatActivity() {
         audioTextView = findViewById(R.id.audioTextView)
         takePhotoButton = findViewById(R.id.takePhotoButton)
         startRecordingButton = findViewById(R.id.startRecordingButton)
+        stopRecordingButton = findViewById(R.id.stopRecordingButton)
+        playAudioButton = findViewById(R.id.playRecordingButton)
+
         MediaUtils.setCurrentActivity(this)
 
         wot = WoTClientHolder.wot!!
@@ -75,11 +81,22 @@ class PicAudioActivity : AppCompatActivity() {
 
         startRecordingButton.setOnClickListener {
             if (checkAudioPermission()) {
-                executeStartRecording()
+                invokeStartRecordingAction()
             } else {
                 requestAudioPermission()
             }
         }
+
+        stopRecordingButton.setOnClickListener {
+            invokeStopRecordingActionAndRead()
+        }
+
+        playAudioButton.setOnClickListener {
+            playRecordedAudio()
+        }
+
+        stopRecordingButton.isEnabled = false
+        playAudioButton.isEnabled = false
     }
 
     override fun onResume() {
@@ -92,6 +109,12 @@ class PicAudioActivity : AppCompatActivity() {
         MediaUtils.setCurrentActivity(null)
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        MediaUtils.setCurrentActivity(null)
+        coroutineScope.cancel()
+    }
+
     private fun checkCameraPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
             this,
@@ -100,10 +123,24 @@ class PicAudioActivity : AppCompatActivity() {
     }
 
     private fun checkAudioPermission(): Boolean {
-        return ContextCompat.checkSelfPermission(
+        val recordAudioGranted = ContextCompat.checkSelfPermission(
             this,
             android.Manifest.permission.RECORD_AUDIO
         ) == PackageManager.PERMISSION_GRANTED
+
+        val writeStoreGranted = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.READ_MEDIA_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
+        }
+
+        return recordAudioGranted && writeStoreGranted
     }
 
     private fun requestCameraPermission() {
@@ -115,9 +152,16 @@ class PicAudioActivity : AppCompatActivity() {
     }
 
     private fun requestAudioPermission() {
+        val permissions = mutableListOf(android.Manifest.permission.RECORD_AUDIO)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(android.Manifest.permission.READ_MEDIA_AUDIO)
+        } else {
+            permissions.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+
         ActivityCompat.requestPermissions(
             this,
-            arrayOf(android.Manifest.permission.RECORD_AUDIO),
+            permissions.toTypedArray(),
             AUDIO_PERMISSION_CODE
         )
     }
@@ -141,7 +185,7 @@ class PicAudioActivity : AppCompatActivity() {
             AUDIO_PERMISSION_CODE -> {
                 if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     Log.d("MEDIA", "Permesso audio concesso")
-                    executeStartRecording()
+                    invokeStartRecordingAction()
                 } else {
                     Log.d("MEDIA", "Permesso audio negato!")
                     Toast.makeText(this, "Permesso audio necessario per registrare", Toast.LENGTH_SHORT).show()
@@ -206,14 +250,6 @@ class PicAudioActivity : AppCompatActivity() {
         }
     }
 
-    private fun executeStartRecording() {
-        coroutineScope.launch {
-            invokeStartRecording()
-            delay(5000)
-            readAudioProperty()
-        }
-    }
-
     private suspend fun invokeTakePhoto() {
         try {
             smartphoneThing?.invokeAction("takePhoto")
@@ -223,48 +259,55 @@ class PicAudioActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun readPhotoProperty() {
-        try {
-            val base64Photo = smartphoneThing?.readProperty("photo")?.value()?.asText()
-            if (base64Photo != null) {
-                val bytes = Base64.decode(base64Photo, Base64.DEFAULT)
-                val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                photoImageView.setImageBitmap(bitmap)
-                Log.d("MEDIA", "Foto aggiornata!")
-            } else {
-                Log.d("MEDIA", "Nessuna foto disponibile")
+    private fun invokeStartRecordingAction() {
+        coroutineScope.launch {
+            try {
+                smartphoneThing?.invokeAction("startRecording", jsonNodeFactory.nullNode())
+                Log.d("AUDIO", "Invocata startRecording")
+                startRecordingButton.isEnabled = false
+                stopRecordingButton.isEnabled = true
+                playAudioButton.isEnabled = false
+            } catch (e: Exception) {
+                Log.e("AUDIO", "Errore invocando startRecording: ", e)
             }
-        } catch (e: Exception) {
-            Log.e("MEDIA", "Errore leggendo foto: ", e)
         }
     }
 
-    private suspend fun invokeStartRecording() {
-        try {
-            smartphoneThing?.invokeAction("startRecording")
-            Log.d("MEDIA", "Invocato startRecording")
-        } catch (e: Exception) {
-            Log.e("MEDIA", "Errore invocando startRecording: ", e)
-        }
-    }
-
-    private suspend fun readAudioProperty() {
-        try {
-            val base64Audio = smartphoneThing?.readProperty("audio")?.value()?.asText()
-            if (base64Audio != null) {
-                audioTextView.text = "Audio base64 length: ${base64Audio.length}"
-                Log.d("MEDIA", "Audio aggiornato")
-            } else {
-                audioTextView.text = "Nessun audio disponibile!"
+    private fun invokeStopRecordingActionAndRead() {
+        coroutineScope.launch {
+            try {
+                smartphoneThing?.invokeAction("stopRecording", jsonNodeFactory.nullNode())
+                Log.d("AUDIO", "Invocato stopRecording")
+                val updatedAudioJsonNode = smartphoneThing?.readProperty("audio")
+                val updatedAudioBase64 = updatedAudioJsonNode?.value()?.asText()
+                if (updatedAudioBase64 != null && updatedAudioBase64.isNotEmpty()) {
+                    playAudioButton.isEnabled = true
+                    Log.d("AUDIO", "Proprietà letta?")
+                } else {
+                    Log.e("AUDIO", "Proprietà audio vuota o nulla")
+                }
+                startRecordingButton.isEnabled = true
+                stopRecordingButton.isEnabled = false
+            } catch (e: Exception) {
+                Log.e("AUDIO", "Errore fermando registrazione o leggendo audio")
             }
-        } catch (e: Exception) {
-            Log.e("MEDIA", "Errore leggendo audio: ", e)
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        MediaUtils.setCurrentActivity(null)
-        coroutineScope.cancel()
+    private fun playRecordedAudio() {
+        coroutineScope.launch {
+            try {
+                val base64Audio = smartphoneThing?.readProperty("audio")?.value()?.asText()
+                if (base64Audio != null && base64Audio.isNotEmpty()) {
+                    withContext(Dispatchers.IO) {
+                        MediaUtils.playAudio(base64Audio, applicationContext)
+                    }
+                } else {
+                    Toast.makeText(this@PicAudioActivity, "Nessun audio da riprodurre!", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e("AUDIO", "Errore durante riproduzione: ", e)
+            }
+        }
     }
 }

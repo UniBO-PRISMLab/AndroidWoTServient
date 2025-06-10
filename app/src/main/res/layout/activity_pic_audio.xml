@@ -26,6 +26,20 @@
         android:text="Registra Audio (5s)"
         android:layout_marginTop="16dp"/>
 
+    <Button
+        android:id="@+id/stopRecordingButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Stop Audio"
+        android:layout_marginTop="16dp"/>
+
+    <Button
+        android:id="@+id/playRecordingButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Riproduci Audio"
+        android:layout_marginTop="16dp"/>
+
     <TextView
         android:id="@+id/audioTextView"
         android:layout_width="match_parent"
