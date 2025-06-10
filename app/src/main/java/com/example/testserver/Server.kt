@@ -7,14 +7,19 @@ import android.hardware.SensorManager
 import android.hardware.SensorEventListener
 import android.preference.PreferenceManager
 import android.util.Log
+import android.util.Base64
 import com.fasterxml.jackson.databind.node.JsonNodeFactory
 import org.eclipse.thingweb.Servient
 import org.eclipse.thingweb.Wot
 import org.eclipse.thingweb.reflection.ExposedThingBuilder
 import org.eclipse.thingweb.thing.schema.InteractionInput
+import org.eclipse.thingweb.thing.schema.InteractionOptions
 import org.eclipse.thingweb.thing.schema.WoTExposedThing
+import org.eclipse.thingweb.thing.schema.WoTInteractionOutput
+import org.eclipse.thingweb.thing.schema.stringSchema
 import java.io.File
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutionException
 
 class Server(
     private val wot: Wot,
@@ -29,6 +34,8 @@ class Server(
     private var photoThingId: String? = null
     private var audioThingId: String? = null
 
+    private var currentPhotoBase64: String = ""
+
     suspend fun start(): List<WoTExposedThing> {
         // Stop eventuali Thing attivi
         stop()
@@ -42,35 +49,6 @@ class Server(
             servient.expose(smartphoneThing.getThingDescription().id)
             exposedThings.add(smartphoneThing)
             Log.d("SERVER", "SmartphoneThing esposto con ID: ${smartphoneThing.getThingDescription().id}")
-        }
-
-        // Aggiungi Thing multimediali una sola volta
-        // Photo Thing
-        val photoFile = File(context.externalCacheDir, "photo.jpg")
-        photoThing = PhotoThing(photoFile)
-        val exposedPhoto =
-            ExposedThingBuilder.createExposedThing(wot, photoThing!!, PhotoThing::class)
-        if (exposedPhoto != null) {
-            photoThingId = exposedPhoto.getThingDescription().id
-            servient.addThing(exposedPhoto)
-            servient.expose(photoThingId!!)
-            exposedThings.add(exposedPhoto)
-            MediaThings.photoThing = photoThing
-            Log.d("SERVER", "PhotoThing esposto con ID: $photoThingId")
-        }
-
-        // Audio Record Thing
-        val audioFile = File(context.externalCacheDir, "audio.3gp")
-        audioThing = AudioThing(audioFile)
-        val exposedAudio =
-            ExposedThingBuilder.createExposedThing(wot, audioThing!!, AudioThing::class)
-        if (exposedAudio != null) {
-            audioThingId = exposedAudio.getThingDescription().id
-            servient.addThing(exposedAudio)
-            servient.expose(audioThingId!!)
-            exposedThings.add(exposedAudio)
-            MediaThings.audioThing = audioThing
-            Log.d("SERVER", "AudioThing esposto con ID: $audioThingId")
         }
 
         return exposedThings
@@ -127,6 +105,35 @@ class Server(
                     }
                 }
             }
+            stringProperty("photo") {
+                title = "Last captured photo"
+                description = "Base64 encoded image"
+                readOnly = true
+                observable = false
+            }
+            action<Unit, Unit>("takePhoto") {
+                title = "Capture a new photo"
+                description = "Takes a new photo and updates photo property"
+            }
+            action<String, Unit>("updatePhoto") {
+                title = "Update photo property"
+                description = "Updates the 'photo' property with a new Base64 encoded image"
+                input = stringSchema{/*
+                    title = "Action Input"
+                    minLength = 1
+                    default = "test"*/
+                }
+            }
+            stringProperty("audio") {
+                title = "Last recorded audio"
+                description = "Base64 encoded audio"
+                readOnly = true
+                observable = false
+            }
+            action<Unit, Unit>("startRecording") {
+                title = "Start recording audio"
+                description = "Start recording and updates audio property"
+            }
         }.apply {
             // Aggiungi i property read handlers
             for (sensor in enabledSensors) {
@@ -151,6 +158,47 @@ class Server(
                         }
                     }
                 }
+            }
+            setPropertyReadHandler("photo") {
+                ServientStats.logRequest(thingId, "readProperty")
+                InteractionInput.Value(jsonNodeFactory.textNode(currentPhotoBase64))
+            }
+            setActionHandler("takePhoto"){ _: WoTInteractionOutput, _: InteractionOptions? ->
+                ServientStats.logRequest(thingId, "invokeAction")
+                MediaUtils.takePhoto(context)
+                InteractionInput.Value(jsonNodeFactory.nullNode())
+            }
+            setActionHandler("updatePhoto") { input: WoTInteractionOutput, _: InteractionOptions? ->
+                ServientStats.logRequest(thingId, "invokeAction")
+                val newPhotoBase64 = input.value()?.asText()
+                if (newPhotoBase64 != null) {
+                    currentPhotoBase64 = newPhotoBase64
+                    Log.d("SERVER", "'photo' aggiornata!")
+                    val photoFile = File(context.externalCacheDir, "photo.jpg")
+                    try {
+                        val bytes = Base64.decode(newPhotoBase64, Base64.DEFAULT)
+                        photoFile.writeBytes(bytes)
+                        Log.d("SERVER", "Foto salvata su disco")
+                    } catch (e: Exception) {
+                        Log.e("SERVER", "Errore salvando foto su disco: ", e)
+                    }
+                    InteractionInput.Value(jsonNodeFactory.nullNode())
+                } else {
+                    Log.e("SERVER", "Errore input per updatePhoto è nullo")
+                    InteractionInput.Value(jsonNodeFactory.nullNode())
+                }
+            }
+            setPropertyReadHandler("audio") {
+                ServientStats.logRequest(thingId, "readProperty")
+                val audioFile = File(context.externalCacheDir, "audio.3gp")
+                val audioBytes = audioFile.takeIf { it.exists() }?.readBytes()
+                val base64 = audioBytes?.let { android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP) } ?: ""
+                InteractionInput.Value(jsonNodeFactory.textNode(base64))
+            }
+            setActionHandler("startRecording"){ _: WoTInteractionOutput, _: InteractionOptions? ->
+                ServientStats.logRequest(thingId, "invokeAction")
+                MediaUtils.recordAudio(context)
+                null
             }
         }
 

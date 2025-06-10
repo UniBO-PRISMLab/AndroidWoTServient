@@ -1,45 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical"
-    android:padding="16dp" >
+    android:padding="16dp"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
 
     <ImageView
-        android:id="@+id/imageView"
+        android:id="@+id/photoImageView"
         android:layout_width="match_parent"
         android:layout_height="200dp"
-        android:scaleType="centerCrop"
-        android:background="@android:color/darker_gray" />
+        android:scaleType="centerInside"
+        android:contentDescription="Foto catturata"/>
 
     <Button
-        android:id="@+id/takePictureButton"
+        android:id="@+id/takePhotoButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Scatta Foto"/>
 
     <Button
-        android:id="@+id/recordAudioButton"
+        android:id="@+id/startRecordingButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Registra Audio" />
+        android:text="Registra Audio (5s)"
+        android:layout_marginTop="16dp"/>
 
-    <Button
-        android:id="@+id/stopRecordingButton"
+    <TextView
+        android:id="@+id/audioTextView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Ferma Registrazione" />
-
-    <Button
-        android:id="@+id/playAudioButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Riproduci Audio" />
-
-    <Button
-        android:id="@+id/sendButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Invia" />
+        android:text="Audio base64 info"
+        android:paddingTop="16dp"/>
 
 </LinearLayout>
