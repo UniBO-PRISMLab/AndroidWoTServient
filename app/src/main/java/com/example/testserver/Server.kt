@@ -71,7 +71,6 @@ class Server(
         }
         if (enabledSensors.isEmpty()) {
             Log.d("SERVER", "Nessun sensore abilitato!")
-            return null
         }
 
         val thing = wot.produce {

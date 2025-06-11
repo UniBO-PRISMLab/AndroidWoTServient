@@ -10,7 +10,7 @@ import android.util.Base64
 import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
-import java.io.IOException
+import java.lang.ref.WeakReference
 
 // TODO: togliere setCurrentActivity e cambiare..
 
@@ -18,18 +18,18 @@ object MediaUtils {
     private var mediaRecorder: MediaRecorder? = null
     private var audioFilePath: String? = null
     private var isRecording = false
-    private var currentActivity: Activity? = null
+    private var currentActivityRef: WeakReference<Activity>? = null
     private var mediaPlayer: MediaPlayer? = null
 
     const val REQUEST_IMAGE_CAPTURE = 1
 
     fun setCurrentActivity(activity: Activity?) {
-        currentActivity = activity
+        currentActivityRef = activity?.let { WeakReference(it) }
     }
 
     fun takePhoto(context: Context) {
         try {
-            val activity = currentActivity
+            val activity = currentActivityRef?.get()
             if (activity == null) {
                 Log.e("MEDIAUTILS", "Nessuna activity registrata")
                 return
@@ -134,7 +134,7 @@ object MediaUtils {
                     mp.release()
                     tmpAudioFile.delete()
                     mediaPlayer = null
-                    currentActivity?.runOnUiThread {
+                    currentActivityRef?.get()?.runOnUiThread {
                         android.widget.Toast.makeText(context, "Errore durante la riproduzione dell'audio.", android.widget.Toast.LENGTH_SHORT).show()
                     }
                     true // Indica che l'errore è stato gestito
