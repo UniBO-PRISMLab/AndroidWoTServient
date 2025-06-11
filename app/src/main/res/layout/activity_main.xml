@@ -1,65 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp"
-    android:gravity="center_horizontal"
-    >
+    android:layout_height="match_parent">
 
-    <!-- Spaziatore verticale -->
-    <View
+    <!-- Contenuto principale -->
+    <TextView
+        android:id="@+id/main_content"
         android:layout_width="match_parent"
-        android:layout_height="32dp" />
+        android:layout_height="match_parent"
+        android:layout_marginBottom="56dp" /> <!-- spazio per BottomNavigation -->
 
-
-    <Button
-        android:id="@+id/sensorDataButton"
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottom_navigation"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Vai a Dati" />
+        android:layout_height="56dp"
+        android:layout_gravity="bottom"
+        app:menu="@menu/bottom_nav_menu"
+        app:labelVisibilityMode="labeled" />
 
-    <Button
-        android:id="@+id/sensorListButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Sensori sul Dispositivo" />
-
-    <Button
-        android:id="@+id/repeaterButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Connettiti a un Ripetitore"
-        android:enabled="false" />
-
-    <Button
-        android:id="@+id/picAudioButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Invia Foto/Audio" />
-
-    <Button
-        android:id="@+id/shareSensorsButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Selezione Sensori da Condividere" />
-
-    <Button
-        android:id="@+id/statsButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Statistiche" />
-
-    <Button
-        android:id="@+id/settingsButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Impostazioni" />
-
-    <Button
-        android:id="@+id/startServerBtn"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Avvia Server" />
-
-</LinearLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
