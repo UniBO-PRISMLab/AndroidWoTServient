@@ -2,6 +2,8 @@ package com.example.testserver
 
 import android.graphics.Color
 import android.os.Bundle
+import android.view.View
+import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.github.mikephil.charting.charts.BarChart
@@ -14,20 +16,30 @@ import com.github.mikephil.charting.data.PieDataSet
 import com.github.mikephil.charting.data.PieEntry
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 import com.github.mikephil.charting.utils.ColorTemplate
+import com.google.android.material.bottomnavigation.BottomNavigationView
 
-class StatsActivity : AppCompatActivity() {
+class StatsActivity : BaseActivity() {
+    private lateinit var uptimeText: TextView
     private lateinit var pieChart: PieChart
     private lateinit var barChart: BarChart
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_stats)
-        pieChart = findViewById(R.id.thingPieChart)
-        barChart = findViewById(R.id.interactionBarChart)
-        val uptimeText = findViewById<TextView>(R.id.uptimeText)
-        uptimeText.text = "Uptime: ${ServientStats.uptimeSeconds()} s"
+        setContentView(R.layout.activity_base_with_nav)
+        val contentFrame = findViewById<FrameLayout>(R.id.contentFrame)
+        val statsLayout = layoutInflater.inflate(R.layout.activity_stats, contentFrame, false)
+        contentFrame.addView(statsLayout)
+        initializeViews(statsLayout)
+        setupBottomNavigation(R.id.nav_stats)
         setupPieChart()
         setupBarChart()
+    }
+
+    private fun initializeViews(rootView: View) {
+        uptimeText = rootView.findViewById(R.id.uptimeText)
+        pieChart = rootView.findViewById(R.id.thingPieChart)
+        barChart = rootView.findViewById(R.id.interactionBarChart)
+        uptimeText.text = "Uptime: ${ServientStats.uptimeSeconds()} s"
     }
 
     private fun setupPieChart() {
