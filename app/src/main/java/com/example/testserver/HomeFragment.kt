@@ -52,7 +52,6 @@ class HomeFragment : Fragment() {
         val context = requireContext()
         context.startForegroundService(Intent(context, WoTService::class.java))
         Toast.makeText(context, "Server Avviato con Successo!", Toast.LENGTH_SHORT).show()
-        BaseActivity.serverRunning = true
     }
 
     override fun onRequestPermissionsResult(

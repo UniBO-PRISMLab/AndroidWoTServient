@@ -36,7 +36,6 @@
         <activity android:name=".PicAudioActivity" />
         <activity android:name=".SelectSensorsActivity" />
         <activity android:name=".SettingsActivity" />
-        <activity android:name=".StatsActivity" />
         <service android:name=".WoTService"
             android:exported="false"
             android:foregroundServiceType="dataSync"/>
