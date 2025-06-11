@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
 import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.charts.PieChart
 import com.github.mikephil.charting.data.BarData
@@ -16,7 +15,6 @@ import com.github.mikephil.charting.data.PieDataSet
 import com.github.mikephil.charting.data.PieEntry
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 import com.github.mikephil.charting.utils.ColorTemplate
-import com.google.android.material.bottomnavigation.BottomNavigationView
 
 class StatsActivity : BaseActivity() {
     private lateinit var uptimeText: TextView
@@ -26,11 +24,13 @@ class StatsActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_base_with_nav)
+
         val contentFrame = findViewById<FrameLayout>(R.id.contentFrame)
         val statsLayout = layoutInflater.inflate(R.layout.activity_stats, contentFrame, false)
         contentFrame.addView(statsLayout)
         initializeViews(statsLayout)
         setupBottomNavigation(R.id.nav_stats)
+
         setupPieChart()
         setupBarChart()
     }

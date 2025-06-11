@@ -2,49 +2,26 @@ package com.example.testserver
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.bottomnavigation.BottomNavigationView
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : BaseActivity() {
 
-    private lateinit var mainContent: TextView
+    private lateinit var mainContentText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        setContentView(R.layout.activity_base_with_nav)
+        val contentFrame = findViewById<FrameLayout>(R.id.contentFrame)
+        val homeLayout = layoutInflater.inflate(R.layout.activity_main, contentFrame, false)
+        contentFrame.addView(homeLayout)
 
-        mainContent = findViewById(R.id.main_content)
-
-        val bottomNav = findViewById<BottomNavigationView>(R.id.bottom_navigation)
-
+        mainContentText = homeLayout.findViewById(R.id.main_content)
         // Mostra una breve introduzione nella home (main_content)
-        mainContent.text = "Benvenuto nella tua app WoT!\nUsa il menu in basso per navigare."
+        mainContentText.text = "Benvenuto nella tua app WoT!\nUsa il menu in basso per navigare."
 
-        bottomNav.setOnItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.nav_home -> {
-                    mainContent.text = "Benvenuto nella tua app WoT!\nUsa il menu in basso per navigare."
-                    true
-                }
-                R.id.nav_sensors -> {
-                    startActivity(Intent(this, SensorListActivity::class.java))
-                    true
-                }
-                R.id.nav_stats -> {
-                    startActivity(Intent(this, StatsActivity::class.java))
-                    true
-                }
-                R.id.nav_server -> {
-                    startActivity(Intent(this, StartServerActivity::class.java))
-                    true
-                }
-                R.id.nav_media -> {
-                    startActivity(Intent(this, PicAudioActivity::class.java))
-                    true
-                }
-                else -> false
-            }
-        }
+        setupBottomNavigation(R.id.nav_home)
     }
 }

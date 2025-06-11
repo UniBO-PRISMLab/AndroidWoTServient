@@ -13,7 +13,9 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Base64
 import android.util.Log
+import android.view.View
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -33,7 +35,7 @@ import org.eclipse.thingweb.thing.schema.WoTConsumedThing
 import java.io.File
 import java.io.FileOutputStream
 
-class PicAudioActivity : AppCompatActivity() {
+class PicAudioActivity : BaseActivity() {
     private lateinit var wot: Wot
     private var smartphoneThing: WoTConsumedThing? = null
 
@@ -55,14 +57,12 @@ class PicAudioActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_pic_audio)
-
-        photoImageView = findViewById(R.id.photoImageView)
-        audioTextView = findViewById(R.id.audioTextView)
-        takePhotoButton = findViewById(R.id.takePhotoButton)
-        startRecordingButton = findViewById(R.id.startRecordingButton)
-        stopRecordingButton = findViewById(R.id.stopRecordingButton)
-        playAudioButton = findViewById(R.id.playRecordingButton)
+        setContentView(R.layout.activity_base_with_nav)
+        val contentFrame = findViewById<FrameLayout>(R.id.contentFrame)
+        val layout = layoutInflater.inflate(R.layout.activity_pic_audio, contentFrame, false)
+        contentFrame.addView(layout)
+        setupBottomNavigation(R.id.nav_media)
+        initializeViews(layout)
 
         MediaUtils.setCurrentActivity(this)
 
@@ -97,6 +97,15 @@ class PicAudioActivity : AppCompatActivity() {
 
         stopRecordingButton.isEnabled = false
         playAudioButton.isEnabled = false
+    }
+
+    private fun initializeViews(rootView: View) {
+        photoImageView = rootView.findViewById(R.id.photoImageView)
+        audioTextView = rootView.findViewById(R.id.audioTextView)
+        takePhotoButton = rootView.findViewById(R.id.takePhotoButton)
+        startRecordingButton = rootView.findViewById(R.id.startRecordingButton)
+        stopRecordingButton = rootView.findViewById(R.id.stopRecordingButton)
+        playAudioButton = rootView.findViewById(R.id.playRecordingButton)
     }
 
     override fun onResume() {
