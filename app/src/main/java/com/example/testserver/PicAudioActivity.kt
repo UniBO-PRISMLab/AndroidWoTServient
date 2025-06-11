@@ -61,7 +61,7 @@ class PicAudioActivity : BaseActivity() {
         val contentFrame = findViewById<FrameLayout>(R.id.contentFrame)
         val layout = layoutInflater.inflate(R.layout.activity_pic_audio, contentFrame, false)
         contentFrame.addView(layout)
-        setupBottomNavigation(R.id.nav_media)
+        setupBottomNavigation(R.id.nav_data)
         initializeViews(layout)
 
         MediaUtils.setCurrentActivity(this)

@@ -40,8 +40,8 @@ open class BaseActivity : AppCompatActivity() {
                     }
                     true
                 }
-                R.id.nav_media -> {
-                    if (selectedItemId != R.id.nav_media) {
+                R.id.nav_data -> {
+                    if (selectedItemId != R.id.nav_data) {
                         if (!serverRunning) {
                             Toast.makeText(this, "Avvia il Server prima!", Toast.LENGTH_SHORT).show()
                             false

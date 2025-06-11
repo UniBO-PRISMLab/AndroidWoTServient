@@ -19,8 +19,8 @@
         android:icon="@drawable/ic_launcher_foreground" />
 
     <item
-        android:id="@+id/nav_media"
-        android:title="Media"
+        android:id="@+id/nav_data"
+        android:title="Dati"
         android:icon="@drawable/ic_launcher_foreground" />
 
 </menu>
