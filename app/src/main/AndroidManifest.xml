@@ -37,7 +37,6 @@
         <activity android:name=".SelectSensorsActivity" />
         <activity android:name=".SettingsActivity" />
         <activity android:name=".StatsActivity" />
-        <activity android:name=".StartServerActivity" />
         <service android:name=".WoTService"
             android:exported="false"
             android:foregroundServiceType="dataSync"/>

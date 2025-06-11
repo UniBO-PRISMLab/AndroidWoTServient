@@ -206,6 +206,7 @@ class WoTService : Service() {
             val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
             prefs.edit{putBoolean("server_started", false)}
             Log.d("SERVER", "Stop completo!")
+            BaseActivity.serverRunning = false
         } catch (e: Exception) {
             Log.e("WOT_SERVICE", "Errore durante stop server: ", e)
         }

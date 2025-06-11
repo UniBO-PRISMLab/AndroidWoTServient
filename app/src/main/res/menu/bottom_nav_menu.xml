@@ -9,18 +9,13 @@
         android:icon="@drawable/ic_launcher_foreground" />
 
     <item
-        android:id="@+id/nav_sensors"
-        android:title="Sensori"
+        android:id="@+id/nav_settings"
+        android:title="Impostazioni"
         android:icon="@drawable/ic_launcher_foreground" />
 
     <item
         android:id="@+id/nav_stats"
         android:title="Statistiche"
-        android:icon="@drawable/ic_launcher_foreground" />
-
-    <item
-        android:id="@+id/nav_server"
-        android:title="Server"
         android:icon="@drawable/ic_launcher_foreground" />
 
     <item
