@@ -32,7 +32,8 @@ class HomeFragment : Fragment() {
         mainContentText = view.findViewById(R.id.main_content)
         startButton = view.findViewById(R.id.startBtn)
 
-        mainContentText.text = "Benvenuto nella tua app WoT!\nUsa il menu in basso per navigare."
+        mainContentText.text = "Benvenuto nella tua app WoT!\n" + "L’app permette di attivare un server WoT per condividere in tempo reale i dati " +
+                "dei sensori selezionati, immagini e registrazioni audio del tuo smartphone.\n" + "Usa il menu in basso per navigare."
 
         startButton.setOnClickListener {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

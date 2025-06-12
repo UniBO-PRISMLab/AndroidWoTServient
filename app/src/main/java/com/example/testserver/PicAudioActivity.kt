@@ -35,7 +35,7 @@ import org.eclipse.thingweb.thing.schema.WoTConsumedThing
 import java.io.File
 import java.io.FileOutputStream
 
-class PicAudioActivity : BaseActivity() {
+class PicAudioActivity : AppCompatActivity() {
     private lateinit var wot: Wot
     private var smartphoneThing: WoTConsumedThing? = null
 
@@ -57,13 +57,8 @@ class PicAudioActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_base_with_nav)
-        val contentFrame = findViewById<FrameLayout>(R.id.contentFrame)
-        val layout = layoutInflater.inflate(R.layout.activity_pic_audio, contentFrame, false)
-        contentFrame.addView(layout)
-        setupBottomNavigation(R.id.nav_data)
-        initializeViews(layout)
-
+        setContentView(R.layout.activity_pic_audio)
+        initializeViews(findViewById(android.R.id.content))
         MediaUtils.setCurrentActivity(this)
 
         wot = WoTClientHolder.wot!!

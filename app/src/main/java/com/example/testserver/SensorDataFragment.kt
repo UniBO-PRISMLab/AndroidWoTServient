@@ -143,10 +143,15 @@ class SensorDataFragment : Fragment() {
         val client = sensorClient ?: return
         try {
             val values = client.getAllSensorValues()
+            val timestamp = System.currentTimeMillis()
             withContext(Dispatchers.Main) {
                 for ((prop, value) in values) {
-                    propertyViews[prop]?.text = if (value == -1f)
+                    val floatValue = (value as? Float) ?: -1f
+                    propertyViews[prop]?.text = if (floatValue == -1f)
                         "$prop: Sensore non presente" else "$prop: $value"
+                    if (value != -1f) {
+                        SensorDataHolder.addData(prop, timestamp, floatValue)
+                    }
                 }
             }
         } catch (e: Exception) {

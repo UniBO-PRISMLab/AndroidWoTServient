@@ -29,5 +29,18 @@
             android:layout_height="300dp"
             android:layout_marginTop="16dp" />
 
+        <Spinner
+            android:id="@+id/sensorSelector"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            />
+
+        <com.github.mikephil.charting.charts.LineChart
+            android:id="@+id/sensorLineChart"
+            android:layout_width="match_parent"
+            android:layout_height="300dp"
+            android:layout_marginTop="16dp"/>
+
     </LinearLayout>
 </ScrollView>
