@@ -90,6 +90,8 @@ class WoTService : Service() {
                 return
             }
 
+            setServerStarting(true)
+
             stopWoTServerInternal()
             val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
             val port = prefs.getString("server_port", "8080")?.toIntOrNull() ?: 8080
@@ -108,10 +110,14 @@ class WoTService : Service() {
             server!!.start()
 
             isServerRunning = true
+
+            setServerStarting(false) // ora "started"
             prefs.edit().putBoolean("server_started", true).apply()
+            sendServiceStatusBroadcast()
             Log.d("SERVER", "Server avviato con successo sulla porta $port")
         } catch (e: Exception) {
             Log.e("WOT_SERVICE", "Errore durante avvio server: ", e)
+            setServerStarting(false)
             stopWoTServerInternal()
         }
     }
@@ -144,16 +150,24 @@ class WoTService : Service() {
     }
 
     override fun onDestroy() {
+        Log.d("WOT_SERVICE", "Destroying service..")
         try {
             unregisterReceiver(preferenceReceiver)
         } catch (e: Exception) {
             Log.e("WOT_SERVICE", "Errore durante unregister receiver: ", e)
         }
         coroutineScope.launch {
-            stopWoTServer()
-            // Salvo stats
-            ServientStatsPrefs.save(applicationContext)
-            coroutineScope.cancel()
+            try {
+                stopWoTServer()
+                // Salvo stats
+                ServientStatsPrefs.save(applicationContext)
+                delay(500)
+            } catch (e: Exception) {
+                Log.e("WOT_SERVICE", "errore durante cleanup: ", e)
+            } finally {
+                coroutineScope.cancel()
+                Log.d("WOT_SERVICE", "Service destroyed")
+            }
         }
         super.onDestroy()
     }
@@ -192,23 +206,61 @@ class WoTService : Service() {
             }
             server = null
 
-            servient?.let {
+            wot?.let {
                 try {
-                    it.shutdown()
+                    WoTClientHolder.wot = null
+                    Log.d("SERVER", "WoT pulito")
+                } catch (e: Exception) {
+                    Log.e("SERVER", "Errore durante pulizia WoT: ", e)
+                }
+            }
+            wot = null
+
+            servient?.let { currentServient ->
+                try {
+                    delay(200)
+                    currentServient.shutdown()
                     Log.d("SERVER", "Servient fermato")
+                    delay(300)
                 } catch (e: Exception) {
                     Log.e("SERVER", "Errore durante shutdown servient: ", e)
+                    try {
+                        // Prova a suggerire garbage collection
+                        System.gc()
+                        delay(100)
+                    } catch (gcError: Exception) {
+                        Log.w("SERVER", "Errore durante GC: ", gcError)
+                    }
                 }
             }
             servient = null
-            wot = null
+
             isServerRunning = false
             val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
-            prefs.edit{putBoolean("server_started", false)}
+            prefs.edit{
+                putBoolean("server_started", false)
+                putBoolean("server_starting", false)
+                    .apply()
+            }
+            sendServiceStatusBroadcast()
             Log.d("SERVER", "Stop completo!")
         } catch (e: Exception) {
             Log.e("WOT_SERVICE", "Errore durante stop server: ", e)
+            server = null
+            wot = null
+            servient = null
+            isServerRunning = false
         }
     }
 
+    private fun setServerStarting(starting: Boolean) {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
+        prefs.edit().putBoolean("server_starting", starting).apply()
+        sendServiceStatusBroadcast()
+    }
+
+    private fun sendServiceStatusBroadcast() {
+        val intent = Intent("SERVICE_STATUS_CHANGED")
+        sendBroadcast(intent)
+    }
 }

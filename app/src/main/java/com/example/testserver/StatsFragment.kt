@@ -1,5 +1,9 @@
 package com.example.testserver
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -10,6 +14,7 @@ import android.widget.ArrayAdapter
 import android.widget.Spinner
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.charts.PieChart
@@ -24,6 +29,8 @@ import com.github.mikephil.charting.data.PieDataSet
 import com.github.mikephil.charting.data.PieEntry
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 import com.github.mikephil.charting.utils.ColorTemplate
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class StatsFragment : Fragment() {
     private lateinit var uptimeText: TextView
@@ -31,6 +38,23 @@ class StatsFragment : Fragment() {
     private lateinit var barChart: BarChart
     private lateinit var lineChart: LineChart
     private lateinit var sensorSelector: Spinner
+
+    private var spinnerAdapter: ArrayAdapter<String>? = null
+    private var currentSelectedProperty: String? = null
+
+    private val preferencesReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "PREFERENCES_UPDATED") {
+                val updateType = intent.getStringExtra("update_type")
+                if (updateType == "sensors") {
+                    lifecycleScope.launch {
+                        delay(2000)
+                        updateSensorSpinner()
+                    }
+                }
+            }
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -53,6 +77,19 @@ class StatsFragment : Fragment() {
         setupPieChart()
         setupBarChart()
         setupSensorSelector()
+
+        val filter = IntentFilter("PREFERENCES_UPDATED")
+        requireContext().registerReceiver(preferencesReceiver, filter)
+        startPeriodicSpinnerUpdate()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        try {
+            requireContext().unregisterReceiver(preferencesReceiver)
+        } catch (e: Exception) {
+            // Ignora..
+        }
     }
 
     private fun setupPieChart() {
@@ -100,12 +137,35 @@ class StatsFragment : Fragment() {
     }
 
     private fun setupSensorSelector() {
-        val properties = SensorDataHolder.getAllProperties().toList()
-        if (properties.isEmpty()) return
+        updateSensorSpinner()
+    }
 
-        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, properties)
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        sensorSelector.adapter = adapter
+    private fun updateSensorSpinner() {
+        val properties = SensorDataHolder.getAllProperties().sorted()
+
+        if (properties.isEmpty()) {
+            val emptyList = listOf("Nessun sensore disponibile")
+            spinnerAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, emptyList)
+            spinnerAdapter?.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            sensorSelector.adapter = spinnerAdapter
+            lineChart.clear()
+            lineChart.invalidate()
+            return
+        }
+
+        val previousSelection = currentSelectedProperty
+        spinnerAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, properties)
+        spinnerAdapter?.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        sensorSelector.adapter = spinnerAdapter
+
+        val positionToSelect = if (previousSelection != null && properties.contains(previousSelection)) {
+            properties.indexOf(previousSelection)
+        } else {
+            0
+        }
+
+        sensorSelector.setSelection(positionToSelect)
+        currentSelectedProperty = properties.getOrNull(positionToSelect)
 
         sensorSelector.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(
@@ -114,16 +174,19 @@ class StatsFragment : Fragment() {
                 position: Int,
                 id: Long
             ) {
-                val selectedProperty = properties[position]
-                setupLineChart(selectedProperty)
+                if (position < properties.size) {
+                    val selectedProperty = properties[position]
+                    currentSelectedProperty = selectedProperty
+                    setupLineChart(selectedProperty)
+                }
             }
 
             override fun onNothingSelected(parent: AdapterView<*>?) {
-                // Non fare niente
+                // Niente..
             }
         }
 
-        setupLineChart(properties.first())
+        currentSelectedProperty?.let { setupLineChart(it) }
     }
 
     private fun setupLineChart(property: String) {
@@ -141,6 +204,15 @@ class StatsFragment : Fragment() {
         lineChart.data = lineData
         lineChart.description.isEnabled = false
         lineChart.invalidate()
+    }
+
+    private fun startPeriodicSpinnerUpdate() {
+        lifecycleScope.launch {
+            while (isAdded) {
+                delay(5000) // Aggiorna ogni 5 secondi
+                updateSensorSpinner()
+            }
+        }
     }
 
     private fun getSafeRequestCount(): Map<String, Int> {

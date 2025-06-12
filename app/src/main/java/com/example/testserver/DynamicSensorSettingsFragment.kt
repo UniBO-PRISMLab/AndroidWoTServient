@@ -8,10 +8,15 @@ import android.hardware.SensorManager
 import android.os.Bundle
 import android.util.Log
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
 import androidx.preference.PreferenceScreen
 import androidx.preference.SwitchPreferenceCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 // Mostra elenco di switch -- ognuno permette di scegliere se condividere o no sensore -- viene salvata la preferenza usando come chiave "share_sensor_<nomesensore>"
 class DynamicSensorSettingsFragment : PreferenceFragmentCompat() {
@@ -71,11 +76,40 @@ class DynamicSensorSettingsFragment : PreferenceFragmentCompat() {
         val currentSensorPrefs = sharedPrefs.all.filterKeys { it.startsWith("share_sensor_") }
 
         if (currentSensorPrefs != initialSensorPrefs) {
-            // Solo se sono cambiate, allora riavvio
-            requireContext().stopService(Intent(requireContext(), WoTService::class.java))
-            val intent = Intent(requireContext(), WoTService::class.java)
-            ContextCompat.startForegroundService(requireContext(), intent)
-        }
+            Log.d("DYNAMIC_PREF", "Preferenze dei sensori cambiate, riavvio servizio...")
 
+            // Imposta lo stato "starting" prima di riavviare
+            sharedPrefs.edit()
+                .putBoolean("server_starting", true)
+                .putBoolean("server_started", false)
+                .apply()
+
+            // Notifica il cambio di stato
+            requireContext().sendBroadcast(Intent("SERVICE_STATUS_CHANGED"))
+
+            // Ferma il servizio in modo più controllato
+            val stopIntent = Intent(requireContext(), WoTService::class.java).apply {
+                action = "STOP_SERVICE"
+            }
+            requireContext().startService(stopIntent)
+
+            // Avvia il servizio dopo un delay più lungo per permettere lo stop completo
+            CoroutineScope(Dispatchers.Main).launch {
+                delay(1000) // Delay più lungo per permettere lo stop completo
+                try {
+                    val intent = Intent(requireContext(), WoTService::class.java)
+                    ContextCompat.startForegroundService(requireContext(), intent)
+                    Log.d("DYNAMIC_PREF", "Servizio riavviato")
+                } catch (e: Exception) {
+                    Log.e("DYNAMIC_PREF", "Errore nel riavvio del servizio: ", e)
+                    // Ripristina lo stato in caso di errore
+                    sharedPrefs.edit()
+                        .putBoolean("server_starting", false)
+                        .putBoolean("server_started", false)
+                        .apply()
+                    requireContext().sendBroadcast(Intent("SERVICE_STATUS_CHANGED"))
+                }
+            }
+        }
     }
 }
