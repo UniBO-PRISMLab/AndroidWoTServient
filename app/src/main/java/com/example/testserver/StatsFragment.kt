@@ -11,6 +11,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.Button
 import android.widget.Spinner
 import android.widget.TextView
 import androidx.fragment.app.Fragment
@@ -29,6 +30,7 @@ import com.github.mikephil.charting.data.PieDataSet
 import com.github.mikephil.charting.data.PieEntry
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 import com.github.mikephil.charting.utils.ColorTemplate
+import io.ktor.client.request.request
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -38,6 +40,7 @@ class StatsFragment : Fragment() {
     private lateinit var barChart: BarChart
     private lateinit var lineChart: LineChart
     private lateinit var sensorSelector: Spinner
+    private lateinit var resetButton: Button
 
     private var spinnerAdapter: ArrayAdapter<String>? = null
     private var currentSelectedProperty: String? = null
@@ -50,6 +53,7 @@ class StatsFragment : Fragment() {
                     lifecycleScope.launch {
                         delay(2000)
                         updateSensorSpinner()
+                        updateCharts()
                     }
                 }
             }
@@ -79,8 +83,11 @@ class StatsFragment : Fragment() {
         setupSensorSelector()
 
         val filter = IntentFilter("PREFERENCES_UPDATED")
-        requireContext().registerReceiver(preferencesReceiver, filter)
-        startPeriodicSpinnerUpdate()
+        requireContext().registerReceiver(preferencesReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        startPeriodicUpdates()
+
+        resetButton = view.findViewById(R.id.resetButton)
+        resetButton.setOnClickListener { ServientStats.reset() }
     }
 
     override fun onDestroyView() {
@@ -93,8 +100,10 @@ class StatsFragment : Fragment() {
     }
 
     private fun setupPieChart() {
-        val entries = getSafeRequestCount().map { (thing, count) ->
-            PieEntry(count.toFloat(), thing)
+        val affordances = getAffordanceStatistics()
+
+        val entries = affordances.map { (affordance, count) ->
+            PieEntry(count.toFloat(), cleanAffordanceName(affordance))
         }
 
         pieChart.description.isEnabled = false
@@ -206,7 +215,7 @@ class StatsFragment : Fragment() {
         lineChart.invalidate()
     }
 
-    private fun startPeriodicSpinnerUpdate() {
+    private fun startPeriodicUpdates() {
         lifecycleScope.launch {
             while (isAdded) {
                 delay(5000) // Aggiorna ogni 5 secondi
@@ -215,11 +224,47 @@ class StatsFragment : Fragment() {
         }
     }
 
+    private fun updateCharts() {
+        setupPieChart()
+        setupBarChart()
+    }
+
     private fun getSafeRequestCount(): Map<String, Int> {
         return if (ServientStats.requestCounts.isEmpty()) {
             mapOf("Default" to 5)
         } else {
             ServientStats.requestCounts
         }
+    }
+
+    private fun getAffordanceStatistics(): Map<String, Int> {
+        val affordanceRequests = ServientStats.getAffordanceStatistics()
+        if (affordanceRequests.isEmpty()) {
+            return mapOf("Nessun accesso" to 1)
+        }
+        if (affordanceRequests.isEmpty() && ServientStats.requestCounts.containsKey("smartphone")) {
+            val smartphoneRequests = ServientStats.requestCounts["smartphone"] ?: 0
+            val enabledSensors = SensorDataHolder.getAllProperties()
+            if (enabledSensors.isNotEmpty()) {
+                //TODO: Rimuovere Distribuisci accessi tra i sensori abilitati per una visuale più interessante?
+                val accessPerSensor = smartphoneRequests / enabledSensors.size
+                val remainder = smartphoneRequests % enabledSensors.size
+
+                return enabledSensors.mapIndexed { index, sensor ->
+                    val extraAccess = if (index < remainder) 1 else 0
+                    sensor to (accessPerSensor + extraAccess)
+                }.toMap()
+            }
+        }
+        return affordanceRequests
+    }
+
+    private fun cleanAffordanceName(affordanceName: String): String {
+        return affordanceName
+            .removePrefix("smartphone.")
+            .replace("-", " ")
+            .split("_")
+            .first()
+            .replaceFirstChar { it.uppercase() }
     }
 }

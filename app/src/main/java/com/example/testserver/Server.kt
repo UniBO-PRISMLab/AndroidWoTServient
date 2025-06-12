@@ -143,7 +143,7 @@ class Server(
                 if (sensorValuesCount == 1) {
                     val propName = sanitizeSensorName(name, type)
                     setPropertyReadHandler(propName) {
-                        ServientStats.logRequest(thingId, "readProperty")
+                        ServientStats.logRequest(thingId, "readProperty", propName)
                         val v = readSensorValues(context, type)
                         InteractionInput.Value(jsonNodeFactory.numberNode(v.getOrNull(0) ?: -1f))
                     }
@@ -152,7 +152,7 @@ class Server(
                         val suffix = listOf("x", "y", "z", "w", "v").getOrNull(i) ?: "v$i"
                         val propName = "${sanitizeSensorName(name, type)}_$suffix"
                         setPropertyReadHandler(propName) {
-                            ServientStats.logRequest(thingId, "readProperty")
+                            ServientStats.logRequest(thingId, "readProperty", propName)
                             val v = readSensorValues(context, type)
                             InteractionInput.Value(jsonNodeFactory.numberNode(v.getOrNull(i) ?: -1f))
                         }
@@ -160,16 +160,16 @@ class Server(
                 }
             }
             setPropertyReadHandler("photo") {
-                ServientStats.logRequest(thingId, "readProperty")
+                ServientStats.logRequest(thingId, "readProperty", "photo")
                 InteractionInput.Value(jsonNodeFactory.textNode(currentPhotoBase64))
             }
             setActionHandler("takePhoto"){ _: WoTInteractionOutput, _: InteractionOptions? ->
-                ServientStats.logRequest(thingId, "invokeAction")
+                ServientStats.logRequest(thingId, "invokeAction", "takePhoto")
                 MediaUtils.takePhoto(context)
                 InteractionInput.Value(jsonNodeFactory.nullNode())
             }
             setActionHandler("updatePhoto") { input: WoTInteractionOutput, _: InteractionOptions? ->
-                ServientStats.logRequest(thingId, "invokeAction")
+                ServientStats.logRequest(thingId, "invokeAction", "updatePhoto")
                 val newPhotoBase64 = input.value()?.asText()
                 if (newPhotoBase64 != null) {
                     currentPhotoBase64 = newPhotoBase64
@@ -189,16 +189,16 @@ class Server(
                 }
             }
             setPropertyReadHandler("audio") {
-                ServientStats.logRequest(thingId, "readProperty")
+                ServientStats.logRequest(thingId, "readProperty", "audio")
                 InteractionInput.Value(jsonNodeFactory.textNode(currentAudioBase64))
             }
             setActionHandler("startRecording"){ _: WoTInteractionOutput, _: InteractionOptions? ->
-                ServientStats.logRequest(thingId, "invokeAction")
+                ServientStats.logRequest(thingId, "invokeAction", "startRecording")
                 MediaUtils.startAudioRecording(context)
                 InteractionInput.Value(jsonNodeFactory.nullNode())
             }
             setActionHandler("stopRecording") { _: WoTInteractionOutput, _: InteractionOptions? ->
-                ServientStats.logRequest(thingId, "invokeAction")
+                ServientStats.logRequest(thingId, "invokeAction", "stopRecording")
                 val recordedAudioBase64 = MediaUtils.stopAudioRecording()
                 if (recordedAudioBase64 != null) {
                     currentAudioBase64 = recordedAudioBase64
@@ -279,7 +279,7 @@ class Server(
                 val sensorType = type
                 if (sensorValuesCount == 1) {
                     setPropertyReadHandler("value") {
-                        ServientStats.logRequest(thingId, "readProperty")
+                        ServientStats.logRequest(thingId, "readProperty", "value")
                         val v = readSensorValues(context, sensorType)
                         InteractionInput.Value(jsonNodeFactory.numberNode(v.getOrNull(0) ?: -1f))
                     }
@@ -287,7 +287,7 @@ class Server(
                     for (i in 0 until sensorValuesCount) {
                         val propName = listOf("x", "y", "z").getOrNull(i) ?: "v$i"
                         setPropertyReadHandler(propName) {
-                            ServientStats.logRequest(thingId, "readProperty")
+                            ServientStats.logRequest(thingId, "readProperty", propName)
                             val v = readSensorValues(context, sensorType)
                             InteractionInput.Value(jsonNodeFactory.numberNode(v.getOrNull(i) ?: -1f))
                         }

@@ -10,6 +10,12 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
+        <Button
+            android:id="@+id/resetButton"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:text="Reset Statistiche" />
+
         <TextView
             android:id="@+id/uptimeText"
             android:text="Uptime:"
