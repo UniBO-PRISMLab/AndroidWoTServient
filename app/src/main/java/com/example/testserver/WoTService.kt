@@ -54,6 +54,15 @@ class WoTService : Service() {
                                 server?.updateExposedThings()
                                 Log.d("SERVER", "Server aggiornato!")
                             }
+                            "sensors_restart" -> {
+                                // Restart completo?
+                                Log.d("SERVER", "Restart completo per cambio sensori")
+                                setServerStarting(true)
+                                stopWoTServerInternal()
+                                delay(1000)
+                                startWoTServerInternal()
+                                Log.d("SERVER", "Server riavviato per cambio sensori")
+                            }
                             else -> {
                                 // Default
                                 server?.updateExposedThings()
@@ -112,7 +121,7 @@ class WoTService : Service() {
             isServerRunning = true
 
             setServerStarting(false) // ora "started"
-            prefs.edit().putBoolean("server_started", true).apply()
+            prefs.edit().putBoolean("server_started", true).commit()
             sendServiceStatusBroadcast()
             Log.d("SERVER", "Server avviato con successo sulla porta $port")
         } catch (e: Exception) {
@@ -240,7 +249,7 @@ class WoTService : Service() {
             prefs.edit{
                 putBoolean("server_started", false)
                 putBoolean("server_starting", false)
-                    .apply()
+                    .commit()
             }
             sendServiceStatusBroadcast()
             Log.d("SERVER", "Stop completo!")

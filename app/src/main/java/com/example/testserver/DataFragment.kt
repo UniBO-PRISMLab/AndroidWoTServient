@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
+import android.os.Looper
+import android.os.Handler
 import android.preference.PreferenceManager
 import android.view.LayoutInflater
 import android.view.View
@@ -56,7 +58,11 @@ class DataFragment : Fragment() {
             IntentFilter("SERVICE_STATUS_CHANGED"),
             flags
         )
-        updateButtonStates()
+        Handler(Looper.getMainLooper()).postDelayed ({
+            if (isAdded) {
+                updateButtonStates()
+            }
+        }, 200)
     }
 
     override fun onPause() {
