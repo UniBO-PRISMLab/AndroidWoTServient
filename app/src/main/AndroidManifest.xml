@@ -31,11 +31,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".SensorDataActivity" />
-        <activity android:name=".SensorListActivity" />
         <activity android:name=".PicAudioActivity" />
         <activity android:name=".SelectSensorsActivity" />
-        <activity android:name=".SettingsActivity" />
         <service android:name=".WoTService"
             android:exported="false"
             android:foregroundServiceType="dataSync"/>

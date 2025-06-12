@@ -71,13 +71,15 @@ class StatsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        ServientStats.initialize(requireContext())
+
         uptimeText = view.findViewById(R.id.uptimeText)
         pieChart = view.findViewById(R.id.thingPieChart)
         barChart = view.findViewById(R.id.interactionBarChart)
         sensorSelector = view.findViewById(R.id.sensorSelector)
         lineChart = view.findViewById(R.id.sensorLineChart)
 
-        uptimeText.text = "Uptime: ${ServientStats.uptimeSeconds()} s"
+        updateUptimeText()
         setupPieChart()
         setupBarChart()
         setupSensorSelector()
@@ -87,7 +89,10 @@ class StatsFragment : Fragment() {
         startPeriodicUpdates()
 
         resetButton = view.findViewById(R.id.resetButton)
-        resetButton.setOnClickListener { ServientStats.reset() }
+        resetButton.setOnClickListener {
+            ServientStats.reset()
+            updateAllUI()
+        }
     }
 
     override fun onDestroyView() {
@@ -99,8 +104,19 @@ class StatsFragment : Fragment() {
         }
     }
 
+    private fun updateUptimeText() {
+        uptimeText.text = "Uptime: ${ServientStats.uptimeSeconds()} s"
+    }
+
     private fun setupPieChart() {
         val affordances = getAffordanceStatistics()
+
+        if (affordances.isEmpty()) {
+            pieChart.data = null
+            pieChart.centerText = "Nessun dato disponibile"
+            pieChart.invalidate()
+            return
+        }
 
         val entries = affordances.map { (affordance, count) ->
             PieEntry(count.toFloat(), cleanAffordanceName(affordance))
@@ -123,6 +139,12 @@ class StatsFragment : Fragment() {
     }
 
     private fun setupBarChart() {
+        if (ServientStats.interactionTypes.isEmpty()) {
+            barChart.data = null
+            barChart.invalidate()
+            return
+        }
+
         val entries = ServientStats.interactionTypes.entries.mapIndexed { index, (type, count) ->
             BarEntry(index.toFloat(), count.toFloat())
         }
@@ -219,7 +241,11 @@ class StatsFragment : Fragment() {
         lifecycleScope.launch {
             while (isAdded) {
                 delay(5000) // Aggiorna ogni 5 secondi
+                updateUptimeText()
                 updateSensorSpinner()
+                if (ServientStats.totalRequests > 0) {
+                    updateCharts()
+                }
             }
         }
     }
@@ -227,6 +253,12 @@ class StatsFragment : Fragment() {
     private fun updateCharts() {
         setupPieChart()
         setupBarChart()
+    }
+
+    private fun updateAllUI() {
+        updateUptimeText()
+        updateCharts()
+        updateSensorSpinner()
     }
 
     private fun getSafeRequestCount(): Map<String, Int> {
@@ -239,6 +271,7 @@ class StatsFragment : Fragment() {
 
     private fun getAffordanceStatistics(): Map<String, Int> {
         val affordanceRequests = ServientStats.getAffordanceStatistics()
+
         if (affordanceRequests.isEmpty()) {
             return mapOf("Nessun accesso" to 1)
         }

@@ -79,6 +79,7 @@ class WoTService : Service() {
         startForeground(1, createNotification())
         // Carico le stats
         ServientStatsPrefs.load(applicationContext)
+        ServientStats.initialize(applicationContext)
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Context.RECEIVER_NOT_EXPORTED else 0
         registerReceiver(preferenceReceiver, IntentFilter("PREFERENCES_UPDATED"), flags)
         coroutineScope.launch {

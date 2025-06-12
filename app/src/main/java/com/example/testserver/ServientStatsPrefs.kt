@@ -1,39 +1,64 @@
 package com.example.testserver
 
 import android.content.Context
+import androidx.preference.PreferenceManager
 import org.json.JSONObject
 
 object ServientStatsPrefs {
     private const val PREF_NAME = "servient_stats"
 
     fun save(context: Context) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val editor = prefs.edit()
 
         // Questo potrei anche toglierlo
-        editor.putLong("startTime", ServientStats.startTime)
+        editor.putLong("servient_start_time", ServientStats.startTime)
+        editor.putInt("servient_total_requests", ServientStats.totalRequests)
 
-        editor.putInt("totalRequests", ServientStats.totalRequests)
-        editor.putString("requestCounts", JSONObject(ServientStats.requestCounts as Map<*, *>).toString())
-        editor.putString("interactionTypes", JSONObject(ServientStats.interactionTypes as Map<*, *>).toString())
+
+        editor.putStringSet("request_counts_keys", ServientStats.requestCounts.keys)
+        for ((key, value) in ServientStats.requestCounts) {
+            editor.putInt("request_count_$key", value)
+        }
+
+        editor.putStringSet("interaction_types_keys", ServientStats.interactionTypes.keys)
+        for ((key, value) in ServientStats.interactionTypes) {
+            editor.putInt("interaction_type_$key", value)
+        }
+
+        editor.putStringSet("affordance_requests_keys", ServientStats.affordanceRequests.keys)
+        for ((key, value) in ServientStats.affordanceRequests) {
+            editor.putInt("affordance_request_$key", value)
+        }
+
         editor.apply()
     }
 
     fun load(context: Context) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        ServientStats.startTime = prefs.getLong("startTime", System.currentTimeMillis())
-        ServientStats.totalRequests = prefs.getInt("totalRequests", 0)
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+
+        ServientStats.startTime = prefs.getLong("servient_start_time", System.currentTimeMillis())
+        ServientStats.totalRequests = prefs.getInt("servient_total_requests", 0)
+
         ServientStats.requestCounts.clear()
-        val reqJson = prefs.getString("requestCounts", "{}") ?: "{}"
-        val reqObj = JSONObject(reqJson)
-        reqObj.keys().forEach {
-            ServientStats.requestCounts[it] = reqObj.getInt(it)
+        val requestCountsKeys = prefs.getStringSet("request_counts_keys", emptySet()) ?: emptySet()
+        for (key in requestCountsKeys) {
+            val value = prefs.getInt("request_count_$key", 0)
+            ServientStats.requestCounts[key] = value
         }
+
         ServientStats.interactionTypes.clear()
-        val intJson = prefs.getString("interactionTypes", "{}") ?: "{}"
-        val intObj = JSONObject(intJson)
-        intObj.keys().forEach {
-            ServientStats.interactionTypes[it] = intObj.getInt(it)
+        val interactionTypesKeys = prefs.getStringSet("interaction_types_keys", emptySet()) ?: emptySet()
+        for (key in interactionTypesKeys) {
+            val value = prefs.getInt("interaction_type_$key", 0)
+            ServientStats.interactionTypes[key] = value
+        }
+
+        ServientStats.affordanceRequests.clear()
+        val affordanceRequestsKeys = prefs.getStringSet("affordance_requests_keys", emptySet()) ?: emptySet()
+        for (key in affordanceRequestsKeys) {
+            val value = prefs.getInt("affordance_request_$key", 0)
+            ServientStats.affordanceRequests[key] = value
         }
     }
 }
