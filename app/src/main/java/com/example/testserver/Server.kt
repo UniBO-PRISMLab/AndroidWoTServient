@@ -64,7 +64,10 @@ class Server(
 
         val allowedSensorTypes = listOf(
             Sensor.TYPE_ACCELEROMETER,
-            Sensor.TYPE_LIGHT
+            Sensor.TYPE_LIGHT,
+            Sensor.TYPE_GYROSCOPE,
+            Sensor.TYPE_PROXIMITY,
+            Sensor.TYPE_MAGNETIC_FIELD
         )
         val availableSensors = getFilteredSensors(sensorManager, allowedSensorTypes)
 
@@ -369,30 +372,60 @@ class Server(
         val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         val sensor = sensorManager.getDefaultSensor(sensorType) ?: return floatArrayOf()
 
+        if (sensor == null) {
+            Log.w("SENSOR_READ", "Sensore tipo $sensorType non disponibile")
+            return floatArrayOf()
+        }
+
         val latch = CountDownLatch(1)
         var values: FloatArray = floatArrayOf()
+        var hasReceivedData = false
 
         val listener = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent?) {
-                if (event != null) {
+                if (event != null && event.sensor.type == sensorType && !hasReceivedData) {
+                    hasReceivedData = true
                     values = event.values.copyOf()
+                    Log.d("SENSOR_READ", "Ricevuti dati per sensore $sensorType: ${values.contentToString()}")
                     latch.countDown()
-                    sensorManager.unregisterListener(this)
+                    // sensorManager.unregisterListener(this)
                 }
             }
 
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
         }
 
-        sensorManager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_NORMAL)
-
         try {
-            latch.await(200, java.util.concurrent.TimeUnit.MILLISECONDS)
+            // Registra il listener con delay più veloce per lettura immediata
+            val registered = sensorManager.registerListener(
+                listener,
+                sensor,
+                SensorManager.SENSOR_DELAY_FASTEST
+            )
+
+            if (!registered) {
+                Log.e("SENSOR_READ", "Impossibile registrare listener per sensore $sensorType")
+                return floatArrayOf()
+            }
+
+            Log.d("SENSOR_READ", "Listener registrato per sensore $sensorType, attendo dati...")
+
+            // Aspetta più a lungo per i dati del sensore
+            val received = latch.await(1000, java.util.concurrent.TimeUnit.MILLISECONDS)
+
+            if (!received) {
+                Log.w("SENSOR_READ", "Timeout nella lettura del sensore $sensorType")
+            }
+
         } catch (e: InterruptedException) {
-            e.printStackTrace()
+            Log.e("SENSOR_READ", "Interruzione durante lettura sensore $sensorType", e)
+            Thread.currentThread().interrupt()
+        } finally {
+            // Assicurati sempre di de-registrare il listener
+            sensorManager.unregisterListener(listener)
+            Log.d("SENSOR_READ", "Listener de-registrato per sensore $sensorType")
         }
 
-        sensorManager.unregisterListener(listener)
         return values
     }
 

@@ -67,7 +67,10 @@ class DynamicSensorSettingsFragment : PreferenceFragmentCompat() {
 
         val allowedSensorTypes = listOf(
             Sensor.TYPE_ACCELEROMETER,
-            Sensor.TYPE_LIGHT
+            Sensor.TYPE_LIGHT,
+            Sensor.TYPE_GYROSCOPE,
+            Sensor.TYPE_PROXIMITY,
+            Sensor.TYPE_MAGNETIC_FIELD
         )
 
         val sensors = sensorManager.getSensorList(Sensor.TYPE_ALL)
