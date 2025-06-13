@@ -27,20 +27,61 @@ class DynamicSensorSettingsFragment : PreferenceFragmentCompat() {
 
     private var initialSensorPrefs: Map<String, Any?> = emptyMap()
 
+    private fun getFriendlyName(sensor: Sensor): String {
+        return when (sensor.type) {
+            Sensor.TYPE_ACCELEROMETER -> "Accelerometro"
+            Sensor.TYPE_LIGHT -> "Sensore di luminosità"
+            Sensor.TYPE_GYROSCOPE -> "Giroscopio"
+            Sensor.TYPE_MAGNETIC_FIELD -> "Magnetometro"
+            Sensor.TYPE_PRESSURE -> "Barometro"
+            Sensor.TYPE_PROXIMITY -> "Sensore di prossimità"
+            Sensor.TYPE_AMBIENT_TEMPERATURE -> "Sensore temperatura ambiente"
+            Sensor.TYPE_RELATIVE_HUMIDITY -> "Sensore umidità"
+            Sensor.TYPE_GRAVITY -> "Sensore gravità"
+            else -> sensor.name
+        }
+    }
+
+    private fun filterByNonWakeupSensors(sensors: List<Sensor>): List<Sensor> {
+        val sensorsByType = sensors.groupBy { it.type }
+
+        return sensorsByType.values.mapNotNull { sensorGroup ->
+            when {
+                sensorGroup.size == 1 -> sensorGroup.first() // Solo una versione disponibile
+                sensorGroup.size > 1 -> {
+                    // Cerca prima la versione non-wakeup
+                    val nonWakeup = sensorGroup.find { !it.isWakeUpSensor }
+                    nonWakeup ?: sensorGroup.first() // Se non trova non-wakeup, prende il primo
+                }
+                else -> null
+            }
+        }
+    }
+
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         val context = requireContext()
         val screen: PreferenceScreen = preferenceManager.createPreferenceScreen(context)
         preferenceScreen = screen
 
         val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+
+        val allowedSensorTypes = listOf(
+            Sensor.TYPE_ACCELEROMETER,
+            Sensor.TYPE_LIGHT
+        )
+
         val sensors = sensorManager.getSensorList(Sensor.TYPE_ALL)
+            .filter {sensor -> sensor.type in allowedSensorTypes}
+        val filteredSensors = filterByNonWakeupSensors(sensors)
 
         val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context)
-        for(sensor in sensors) {
+        for(sensor in filteredSensors) {
             val key = "share_sensor_${sensor.name}"
+            val friendlyName = getFriendlyName(sensor)
+
             val pref = SwitchPreferenceCompat(context).apply {
-                title = sensor.name
-                summary = "Abilita/disabilita ${sensor.name}"
+                title = friendlyName
+                summary = "Abilita/disabilita $friendlyName"
                 this.key = key
                 setDefaultValue(false)
             }

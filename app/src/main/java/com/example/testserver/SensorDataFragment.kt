@@ -32,6 +32,37 @@ class SensorDataFragment : Fragment() {
     private lateinit var refreshButton: Button
     private lateinit var sensorDataContainer: LinearLayout
 
+    private fun getFriendlyName(sensor: Sensor): String {
+        return when (sensor.type) {
+            Sensor.TYPE_ACCELEROMETER -> "Accelerometro"
+            Sensor.TYPE_LIGHT -> "Sensore di luminosità"
+            Sensor.TYPE_GYROSCOPE -> "Giroscopio"
+            Sensor.TYPE_MAGNETIC_FIELD -> "Magnetometro"
+            Sensor.TYPE_PRESSURE -> "Barometro"
+            Sensor.TYPE_PROXIMITY -> "Sensore di prossimità"
+            Sensor.TYPE_AMBIENT_TEMPERATURE -> "Sensore temperatura ambiente"
+            Sensor.TYPE_RELATIVE_HUMIDITY -> "Sensore umidità"
+            Sensor.TYPE_GRAVITY -> "Sensore gravità"
+            else -> sensor.name
+        }
+    }
+
+    private fun filterByNonWakeupSensors(sensors: List<Sensor>): List<Sensor> {
+        val sensorsByType = sensors.groupBy { it.type }
+
+        return sensorsByType.values.mapNotNull { sensorGroup ->
+            when {
+                sensorGroup.size == 1 -> sensorGroup.first() // Solo una versione disponibile
+                sensorGroup.size > 1 -> {
+                    // Cerca prima la versione non-wakeup
+                    val nonWakeup = sensorGroup.find { !it.isWakeUpSensor }
+                    nonWakeup ?: sensorGroup.first() // Se non trova non-wakeup, prende il primo
+                }
+                else -> null
+            }
+        }
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -67,16 +98,28 @@ class SensorDataFragment : Fragment() {
                 val wot = WoTClientHolder.wot!!
                 val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
                 val sensorManager = requireContext().getSystemService(Context.SENSOR_SERVICE) as SensorManager
+
+                val allowedSensorTypes = listOf(
+                    Sensor.TYPE_ACCELEROMETER,
+                    Sensor.TYPE_LIGHT
+                )
+
                 val sensorList = sensorManager.getSensorList(Sensor.TYPE_ALL)
+                    .filter { sensor -> sensor.type in allowedSensorTypes }
+                val filteredSensors = filterByNonWakeupSensors(sensorList)
 
                 val selectedProperties = mutableListOf<String>()
-                for (sensor in sensorList) {
+                val sensorDisplayNames = mutableMapOf<String, String>()
+
+                for (sensor in filteredSensors) {
                     val key = "share_sensor_${sensor.name}"
                     if (!sharedPrefs.getBoolean(key, false)) continue
 
                     val sanitized = sensor.name.lowercase()
                         .replace("\\s+".toRegex(), "-")
                         .replace("[^a-z0-9\\-]".toRegex(), "") + "-${sensor.type}"
+
+                    val friendlyName = getFriendlyName(sensor)
                     val sensorType = sensor.type
                     val numAxes = when (sensorType) {
                         Sensor.TYPE_ACCELEROMETER, Sensor.TYPE_GYROSCOPE,
@@ -86,10 +129,14 @@ class SensorDataFragment : Fragment() {
 
                     if (numAxes == 1) {
                         selectedProperties.add(sanitized)
+                        sensorDisplayNames[sanitized] = friendlyName
                     } else {
-                        selectedProperties.add("${sanitized}_x")
-                        selectedProperties.add("${sanitized}_y")
-                        selectedProperties.add("${sanitized}_z")
+                        val axes = listOf("x", "y", "z")
+                        for (axis in axes) {
+                            val propName = "${sanitized}_$axis"
+                            selectedProperties.add(propName)
+                            sensorDisplayNames[propName] = "$friendlyName ($axis)"
+                        }
                     }
                 }
 
@@ -108,9 +155,10 @@ class SensorDataFragment : Fragment() {
                     sensorDataContainer.addView(titleView)
 
                     for (prop in selectedProperties) {
+                        val displayName = sensorDisplayNames[prop] ?: prop
                         val valueView = TextView(requireContext()).apply {
                             textSize = 16f
-                            text = "$prop: ..."
+                            text = "$displayName: ..."
                             setPadding(16, 4, 8, 4)
                         }
                         sensorDataContainer.addView(valueView)
@@ -147,8 +195,15 @@ class SensorDataFragment : Fragment() {
             withContext(Dispatchers.Main) {
                 for ((prop, value) in values) {
                     val floatValue = (value as? Float) ?: -1f
-                    propertyViews[prop]?.text = if (floatValue == -1f)
-                        "$prop: Sensore non presente" else "$prop: $value"
+                    val textView = propertyViews[prop]
+                    if (textView != null) {
+                        val currentText = textView.text.toString()
+                        val displayName = currentText.substringBefore(":")
+                        textView.text = if (floatValue == -1f)
+                            "$displayName: Sensore non presente"
+                        else
+                            "$displayName: $value"
+                    }
                     if (value != -1f) {
                         SensorDataHolder.addData(prop, timestamp, floatValue)
                     }
@@ -156,7 +211,11 @@ class SensorDataFragment : Fragment() {
             }
         } catch (e: Exception) {
             withContext(Dispatchers.Main) {
-                propertyViews.values.forEach { it.text = "errore" }
+                propertyViews.values.forEach { textView ->
+                    val currentText = textView.text.toString()
+                    val displayName = currentText.substringBefore(":")
+                    textView.text = "$displayName: errore"
+                }
             }
         }
     }

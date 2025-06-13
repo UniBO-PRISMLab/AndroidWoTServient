@@ -45,20 +45,29 @@ class Server(
 
         // Creo Thing smartphone con tutte le affordances dei sensori abilitati
         val smartphoneThing = createSmartphoneThing()
-        if(smartphoneThing != null) {
+        if (smartphoneThing != null) {
             servient.addThing(smartphoneThing)
             servient.expose(smartphoneThing.getThingDescription().id)
             exposedThings.add(smartphoneThing)
-            Log.d("SERVER", "SmartphoneThing esposto con ID: ${smartphoneThing.getThingDescription().id}")
+            Log.d(
+                "SERVER",
+                "SmartphoneThing esposto con ID: ${smartphoneThing.getThingDescription().id}"
+            )
         }
 
         return exposedThings
     }
 
-    private fun createSmartphoneThing() : WoTExposedThing? {
+    private fun createSmartphoneThing(): WoTExposedThing? {
         val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context)
         val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        val availableSensors = sensorManager.getSensorList(Sensor.TYPE_ALL)
+
+        val allowedSensorTypes = listOf(
+            Sensor.TYPE_ACCELEROMETER,
+            Sensor.TYPE_LIGHT
+        )
+        val availableSensors = getFilteredSensors(sensorManager, allowedSensorTypes)
+
         val jsonNodeFactory = JsonNodeFactory.instance
         val thingId = "smartphone"
         val thingTitle = "Smartphone sensors"
@@ -118,7 +127,7 @@ class Server(
             action<String, Unit>("updatePhoto") {
                 title = "Update photo property"
                 description = "Updates the 'photo' property with a new Base64 encoded image"
-                input = stringSchema{}
+                input = stringSchema {}
             }
             stringProperty("audio") {
                 title = "Last recorded audio"
@@ -154,7 +163,11 @@ class Server(
                         setPropertyReadHandler(propName) {
                             ServientStats.logRequest(thingId, "readProperty", propName)
                             val v = readSensorValues(context, type)
-                            InteractionInput.Value(jsonNodeFactory.numberNode(v.getOrNull(i) ?: -1f))
+                            InteractionInput.Value(
+                                jsonNodeFactory.numberNode(
+                                    v.getOrNull(i) ?: -1f
+                                )
+                            )
                         }
                     }
                 }
@@ -163,7 +176,7 @@ class Server(
                 ServientStats.logRequest(thingId, "readProperty", "photo")
                 InteractionInput.Value(jsonNodeFactory.textNode(currentPhotoBase64))
             }
-            setActionHandler("takePhoto"){ _: WoTInteractionOutput, _: InteractionOptions? ->
+            setActionHandler("takePhoto") { _: WoTInteractionOutput, _: InteractionOptions? ->
                 ServientStats.logRequest(thingId, "invokeAction", "takePhoto")
                 MediaUtils.takePhoto(context)
                 InteractionInput.Value(jsonNodeFactory.nullNode())
@@ -192,7 +205,7 @@ class Server(
                 ServientStats.logRequest(thingId, "readProperty", "audio")
                 InteractionInput.Value(jsonNodeFactory.textNode(currentAudioBase64))
             }
-            setActionHandler("startRecording"){ _: WoTInteractionOutput, _: InteractionOptions? ->
+            setActionHandler("startRecording") { _: WoTInteractionOutput, _: InteractionOptions? ->
                 ServientStats.logRequest(thingId, "invokeAction", "startRecording")
                 MediaUtils.startAudioRecording(context)
                 InteractionInput.Value(jsonNodeFactory.nullNode())
@@ -202,7 +215,10 @@ class Server(
                 val recordedAudioBase64 = MediaUtils.stopAudioRecording()
                 if (recordedAudioBase64 != null) {
                     currentAudioBase64 = recordedAudioBase64
-                    Log.d("SERVER", "Proprietà 'audio' aggiornata con nuovo audio Base64. Lunghezza: ${recordedAudioBase64.length}")
+                    Log.d(
+                        "SERVER",
+                        "Proprietà 'audio' aggiornata con nuovo audio Base64. Lunghezza: ${recordedAudioBase64.length}"
+                    )
                     val audioFile = File(context.externalCacheDir, "recorded_audio.3gp")
                     try {
                         val bytes = Base64.decode(recordedAudioBase64, Base64.DEFAULT)
@@ -226,13 +242,18 @@ class Server(
         }
 
 
-
     }
 
     suspend fun updateExposedThings(): List<WoTExposedThing> {
         val sharedPrefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
         val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        val availableSensors = sensorManager.getSensorList(Sensor.TYPE_ALL)
+
+        val allowedSensorTypes = listOf(
+            Sensor.TYPE_ACCELEROMETER,
+            Sensor.TYPE_LIGHT
+        )
+        val availableSensors = getFilteredSensors(sensorManager, allowedSensorTypes)
+
         val wantedThingIds = mutableSetOf<String>()
         val newlyAdded = mutableListOf<WoTExposedThing>()
 
@@ -289,7 +310,11 @@ class Server(
                         setPropertyReadHandler(propName) {
                             ServientStats.logRequest(thingId, "readProperty", propName)
                             val v = readSensorValues(context, sensorType)
-                            InteractionInput.Value(jsonNodeFactory.numberNode(v.getOrNull(i) ?: -1f))
+                            InteractionInput.Value(
+                                jsonNodeFactory.numberNode(
+                                    v.getOrNull(i) ?: -1f
+                                )
+                            )
                         }
                     }
                 }
@@ -430,4 +455,29 @@ class Server(
         }
     }
 
+    private fun filterByNonWakeupSensors(sensors: List<Sensor>): List<Sensor> {
+        val sensorsByType = sensors.groupBy { it.type }
+
+        return sensorsByType.values.mapNotNull { sensorGroup ->
+            when {
+                sensorGroup.size == 1 -> sensorGroup.first() // Solo una versione disponibile
+                sensorGroup.size > 1 -> {
+                    // Cerca prima la versione non-wakeup
+                    val nonWakeup = sensorGroup.find { !it.isWakeUpSensor }
+                    nonWakeup ?: sensorGroup.first() // Se non trova non-wakeup, prende il primo
+                }
+
+                else -> null
+            }
+        }
+    }
+
+    private fun getFilteredSensors(
+        sensorManager: SensorManager,
+        allowedSensorTypes: List<Int>
+    ): List<Sensor> {
+        val allSensors = sensorManager.getSensorList(Sensor.TYPE_ALL)
+            .filter { sensor -> sensor.type in allowedSensorTypes }
+        return filterByNonWakeupSensors(allSensors)
+    }
 }
