@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
+import android.hardware.Sensor
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -58,6 +59,33 @@ class StatsFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private fun getFriendlyNameProperty(propertyName: String): String {
+        val parts = propertyName.split("-")
+        if (parts.size < 2) return propertyName
+
+        val sensorTypeStr = parts.last().split("_")[0]
+        val axis = if (propertyName.contains("_")) {
+            " (${propertyName.substringAfterLast("_").uppercase()})"
+        } else ""
+
+        val sensorType = sensorTypeStr.toIntOrNull() ?: return propertyName
+
+        val baseName = when (sensorType) {
+            Sensor.TYPE_ACCELEROMETER -> "Accelerometro"
+            Sensor.TYPE_LIGHT -> "Sensore di luminosità"
+            Sensor.TYPE_GYROSCOPE -> "Giroscopio"
+            Sensor.TYPE_MAGNETIC_FIELD -> "Magnetometro"
+            Sensor.TYPE_PRESSURE -> "Barometro"
+            Sensor.TYPE_PROXIMITY -> "Sensore di prossimità"
+            Sensor.TYPE_AMBIENT_TEMPERATURE -> "Sensore temperatura ambiente"
+            Sensor.TYPE_RELATIVE_HUMIDITY -> "Sensore umidità"
+            Sensor.TYPE_GRAVITY -> "Sensore gravità"
+            else -> propertyName
+        }
+
+        return baseName + axis
     }
 
     override fun onCreateView(
@@ -184,19 +212,30 @@ class StatsFragment : Fragment() {
             return
         }
 
+        val friendlyToTecnhnicalMap = mutableMapOf<String, String>()
+        val friendlyNames = properties.map { property ->
+            val friendlyName = getFriendlyNameProperty(property)
+            friendlyToTecnhnicalMap[friendlyName] = property
+            friendlyName
+        }.sorted()
+
         val previousSelection = currentSelectedProperty
-        spinnerAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, properties)
+        val previousFriendlyName = if (previousSelection != null) {
+            getFriendlyNameProperty(previousSelection)
+        } else null
+
+        spinnerAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, friendlyNames)
         spinnerAdapter?.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         sensorSelector.adapter = spinnerAdapter
 
-        val positionToSelect = if (previousSelection != null && properties.contains(previousSelection)) {
-            properties.indexOf(previousSelection)
+        val positionToSelect = if (previousFriendlyName != null && friendlyNames.contains(previousFriendlyName)) {
+            friendlyNames.indexOf(previousFriendlyName)
         } else {
             0
         }
 
         sensorSelector.setSelection(positionToSelect)
-        currentSelectedProperty = properties.getOrNull(positionToSelect)
+        currentSelectedProperty = friendlyToTecnhnicalMap[friendlyNames.getOrNull(positionToSelect)]
 
         sensorSelector.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(
@@ -205,10 +244,13 @@ class StatsFragment : Fragment() {
                 position: Int,
                 id: Long
             ) {
-                if (position < properties.size) {
-                    val selectedProperty = properties[position]
-                    currentSelectedProperty = selectedProperty
-                    setupLineChart(selectedProperty)
+                if (position < friendlyNames.size) {
+                    val selectedFriendlyName = friendlyNames[position]
+                    val selectedProperty = friendlyToTecnhnicalMap[selectedFriendlyName]
+                    if (selectedProperty != null) {
+                        currentSelectedProperty = selectedProperty
+                        setupLineChart(selectedProperty, selectedFriendlyName)
+                    }
                 }
             }
 
@@ -217,16 +259,19 @@ class StatsFragment : Fragment() {
             }
         }
 
-        currentSelectedProperty?.let { setupLineChart(it) }
+        currentSelectedProperty?.let {
+            val friendlyName = getFriendlyNameProperty(it)
+            setupLineChart(it, friendlyName)
+        }
     }
 
-    private fun setupLineChart(property: String) {
+    private fun setupLineChart(property: String, friendlyName: String = property) {
         val history = SensorDataHolder.getHistory(property)
         if (history.isEmpty()) return
         val entries = history.mapIndexed { index, (_, value) ->
             Entry(index.toFloat(), value)
         }
-        val dataSet = LineDataSet(entries, property)
+        val dataSet = LineDataSet(entries, friendlyName)
         dataSet.color = Color.BLUE
         dataSet.valueTextColor = Color.BLACK
         dataSet.setDrawCircles(false)
@@ -285,11 +330,19 @@ class StatsFragment : Fragment() {
 
                 return enabledSensors.mapIndexed { index, sensor ->
                     val extraAccess = if (index < remainder) 1 else 0
-                    sensor to (accessPerSensor + extraAccess)
+                    val friendlyName = getFriendlyNameProperty(sensor)
+                    friendlyName to (accessPerSensor + extraAccess)
                 }.toMap()
             }
         }
-        return affordanceRequests
+        return affordanceRequests.mapKeys { (key, _) ->
+            if (key.startsWith("smartphone.")) {
+                val propertyName = key.removePrefix("smartphone.")
+                getFriendlyNameProperty(propertyName)
+            } else {
+                cleanAffordanceName(key)
+            }
+        }
     }
 
     private fun cleanAffordanceName(affordanceName: String): String {
