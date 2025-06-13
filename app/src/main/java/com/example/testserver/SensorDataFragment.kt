@@ -108,7 +108,11 @@ class SensorDataFragment : Fragment() {
                     Sensor.TYPE_LIGHT,
                     Sensor.TYPE_GYROSCOPE,
                     Sensor.TYPE_PROXIMITY,
-                    Sensor.TYPE_MAGNETIC_FIELD
+                    Sensor.TYPE_MAGNETIC_FIELD,
+                    Sensor.TYPE_PRESSURE,
+                    Sensor.TYPE_AMBIENT_TEMPERATURE,
+                    Sensor.TYPE_RELATIVE_HUMIDITY,
+                    Sensor.TYPE_GRAVITY
                 )
 
                 val sensorList = sensorManager.getSensorList(Sensor.TYPE_ALL)
