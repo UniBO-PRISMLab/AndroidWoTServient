@@ -57,7 +57,15 @@
                 android:layout_marginBottom="24dp"
                 />
 
-            <Button
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/autoUpdateSwitch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Aggiornamento automatico"
+                android:layout_marginTop="16dp" />
+
+
+        <Button
                 android:id="@+id/refreshButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

@@ -11,7 +11,9 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.Switch
 import android.widget.TextView
+import androidx.appcompat.widget.SwitchCompat
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import kotlinx.coroutines.CoroutineScope
@@ -31,6 +33,8 @@ class SensorDataFragment : Fragment() {
     private lateinit var progressBar: ProgressBar
     private lateinit var refreshButton: Button
     private lateinit var sensorDataContainer: LinearLayout
+    private lateinit var autoUpdateSwitch: SwitchCompat
+    private var autoUpdateJob: kotlinx.coroutines.Job? = null
 
     private fun getFriendlyName(sensor: Sensor): String {
         return when (sensor.type) {
@@ -185,6 +189,15 @@ class SensorDataFragment : Fragment() {
                 updateSensorValues()
             }
         }
+
+        autoUpdateSwitch = view.findViewById(R.id.autoUpdateSwitch)
+        autoUpdateSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                startAutoUpdate()
+            } else {
+                stopAutoUpdate()
+            }
+        }
     }
 
     private suspend fun updateSensorValues() {
@@ -229,8 +242,24 @@ class SensorDataFragment : Fragment() {
         return false
     }
 
+    private fun startAutoUpdate(intervalMillis: Long = 500L) {
+        if (autoUpdateJob?.isActive == true) return
+        autoUpdateJob = coroutineScope.launch {
+            while (true) {
+                updateSensorValues()
+                delay(intervalMillis)
+            }
+        }
+    }
+
+    private fun stopAutoUpdate() {
+        autoUpdateJob?.cancel()
+        autoUpdateJob = null
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
+        stopAutoUpdate()
         coroutineScope.cancel()
     }
 }
