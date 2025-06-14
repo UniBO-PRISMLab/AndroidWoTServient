@@ -11,11 +11,14 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.preference.PreferenceManager
 import com.fasterxml.jackson.databind.node.JsonNodeFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Dispatchers.Main
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.eclipse.thingweb.Wot
@@ -110,8 +113,34 @@ class SensorActionsFragment : Fragment() {
                 progressBar.visibility = View.VISIBLE
             }
 
-            // TODO: Controlla url corretto
-            val url = "http://localhost:8080/smartphone"
+            // Aspetta che il server sia pronto
+            val serverReady = waitForServerStart()
+            if (!serverReady) {
+                withContext(Main) {
+                    connectionStatus.text = "✗ Server non disponibile dopo il timeout!"
+                    connectionStatus.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
+                    progressBar.visibility = View.GONE
+                    magnitudeButton.isEnabled = false
+                    magnitudeButton.alpha = 0.5f
+                    Toast.makeText(requireContext(), "Server non disponibile", Toast.LENGTH_LONG).show()
+                }
+                Log.e("SENSOR", "Server non disponibile dopo timeout")
+                return
+            }
+
+            // Leggi le preferenze per l'hostname e porta
+            val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            val port = sharedPrefs.getString("server_port", "8080")?.toIntOrNull() ?: 8080
+            val useLocalIp = sharedPrefs.getBoolean("use_local_ip", false)
+            val customHostname = sharedPrefs.getString("server_hostname", "")
+
+            val actualHostname = when {
+                !useLocalIp -> "localhost"
+                !customHostname.isNullOrBlank() -> customHostname
+                else -> getLocalIpAddress() ?: "localhost"
+            }
+
+            val url = "http://$actualHostname:$port/smartphone"
             val td = wot.requestThingDescription(url)
             smartphoneThing = wot.consume(td)
 
@@ -130,7 +159,7 @@ class SensorActionsFragment : Fragment() {
         } catch (e: Exception) {
             withContext(Main) {
                 progressBar.visibility = View.GONE
-                connectionStatus.text = "✗ Errore di connessione"
+                connectionStatus.text = "✗ Errore di connessione: ${e.message}"
                 connectionStatus.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
 
                 magnitudeButton.isEnabled = false
@@ -140,6 +169,36 @@ class SensorActionsFragment : Fragment() {
             }
             Log.e("SENSOR", "Errore connessione a Smartphone Thing: ", e)
         }
+    }
+
+    private suspend fun waitForServerStart(maxRetries: Int = 10, delayMillis: Long = 500): Boolean {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        repeat(maxRetries) {
+            if (prefs.getBoolean("server_started", false)) return true
+            delay(delayMillis)
+        }
+        return false
+    }
+
+    private fun getLocalIpAddress(): String? {
+        try {
+            val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
+            while (interfaces.hasMoreElements()) {
+                val networkInterface = interfaces.nextElement()
+                if (networkInterface.isLoopback || !networkInterface.isUp) continue
+
+                val addresses = networkInterface.inetAddresses
+                while (addresses.hasMoreElements()) {
+                    val address = addresses.nextElement()
+                    if (!address.isLoopbackAddress && address is java.net.Inet4Address) {
+                        return address.hostAddress
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("SENSOR", "Errore ottenimento IP locale: ", e)
+        }
+        return null
     }
 
     private fun getMagnitude() {
@@ -202,6 +261,6 @@ class SensorActionsFragment : Fragment() {
     override fun onDestroy() {
         super.onDestroy()
         // Cancella eventuali coroutine in corso
-        coroutineScope.coroutineContext[Job]?.cancel()
+        coroutineScope.cancel()
     }
 }

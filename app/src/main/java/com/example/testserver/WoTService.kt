@@ -118,9 +118,12 @@ class WoTService : Service() {
             Log.d("SERVER", "Usa IP locale: $useLocalIp, Hostname: $actualHostname")
 
             val httpServer = if (useLocalIp) {
-                HttpProtocolServer(bindPort = port)
-            } else {
+                // When using local IP, bind to all interfaces (0.0.0.0)
+                // so the server can accept connections from the local network
                 HttpProtocolServer(bindPort = port, bindHost = "0.0.0.0")
+            } else {
+                // When using localhost, can bind specifically to localhost
+                HttpProtocolServer(bindPort = port, bindHost = "127.0.0.1")
             }
 
             servient = Servient(

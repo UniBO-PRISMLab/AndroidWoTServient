@@ -14,7 +14,8 @@
             android:key="use_local_ip"
             android:title="Usa IP locale"
             android:summary="Esponi server su IP locale invece di localhost"
-            android:defaultValue="false" />
+            android:defaultValue="false"
+            android:selectable="false" />
 
         <EditTextPreference
             android:key="server_hostname"

@@ -52,6 +52,14 @@ class SensorDataFragment : Fragment() {
         }
     }
 
+    // Add this function to match the server's sanitization logic
+    private fun sanitizeSensorName(name: String, type: Int): String {
+        val sanitizedName = name.lowercase()
+            .replace("\\s+".toRegex(), "-")
+            .replace("[^a-z0-9\\-]".toRegex(), "")
+        return "$sanitizedName-$type"
+    }
+
     private fun filterByNonWakeupSensors(sensors: List<Sensor>): List<Sensor> {
         val sensorsByType = sensors.groupBy { it.type }
 
@@ -128,9 +136,8 @@ class SensorDataFragment : Fragment() {
                     val key = "share_sensor_${sensor.name}"
                     if (!sharedPrefs.getBoolean(key, false)) continue
 
-                    val sanitized = sensor.name.lowercase()
-                        .replace("\\s+".toRegex(), "-")
-                        .replace("[^a-z0-9\\-]".toRegex(), "") + "-${sensor.type}"
+                    // Use the same sanitization logic as the server
+                    val sanitized = sanitizeSensorName(sensor.name, sensor.type)
 
                     val friendlyName = getFriendlyName(sensor)
                     val sensorType = sensor.type
@@ -154,7 +161,15 @@ class SensorDataFragment : Fragment() {
                 }
 
                 val port = sharedPrefs.getString("server_port", "8080")?.toIntOrNull() ?: 8080
-                val url = "http://localhost:$port/smartphone"
+                val useLocalIp = sharedPrefs.getBoolean("use_local_ip", false)
+                val customHostname = sharedPrefs.getString("server_hostname", "")
+                val actualHostname = when {
+                    !useLocalIp -> "localhost"
+                    !customHostname.isNullOrBlank() -> customHostname
+                    else -> getLocalIpAddress() ?: "localhost"
+                }
+
+                val url = "http://$actualHostname:$port/smartphone"
                 val client = MultiValueSensorClient(wot, url)
                 client.connect()
                 sensorClient = client
@@ -223,7 +238,13 @@ class SensorDataFragment : Fragment() {
             val timestamp = System.currentTimeMillis()
             withContext(Dispatchers.Main) {
                 for ((prop, value) in values) {
-                    val floatValue = (value as? Float) ?: -1f
+                    val floatValue = when (value) {
+                        is Float -> value
+                        is Double -> value.toFloat()
+                        is Int -> value.toFloat()
+                        else -> -1f
+                    }
+
                     val textView = propertyViews[prop]
                     if (textView != null) {
                         val currentText = textView.text.toString()
@@ -231,9 +252,10 @@ class SensorDataFragment : Fragment() {
                         textView.text = if (floatValue == -1f)
                             "$displayName: Sensore non presente"
                         else
-                            "$displayName: $value"
+                            "$displayName: $floatValue"
                     }
-                    if (value != -1f) {
+
+                    if (floatValue != -1f) {
                         SensorDataHolder.addData(prop, timestamp, floatValue)
                     }
                 }
@@ -246,6 +268,7 @@ class SensorDataFragment : Fragment() {
                     textView.text = "$displayName: errore"
                 }
             }
+            Log.e("SENSOR_DATA", "Error updating sensor values: ", e)
         }
     }
 
@@ -271,6 +294,27 @@ class SensorDataFragment : Fragment() {
     private fun stopAutoUpdate() {
         autoUpdateJob?.cancel()
         autoUpdateJob = null
+    }
+
+    private fun getLocalIpAddress(): String? {
+        try {
+            val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
+            while (interfaces.hasMoreElements()) {
+                val networkInterface = interfaces.nextElement()
+                if (networkInterface.isLoopback || !networkInterface.isUp) continue
+
+                val addresses = networkInterface.inetAddresses
+                while (addresses.hasMoreElements()) {
+                    val address = addresses.nextElement()
+                    if (!address.isLoopbackAddress && address is java.net.Inet4Address) {
+                        return address.hostAddress
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("SERVER", "Errore ottenimento IP locale: ", e)
+        }
+        return null
     }
 
     override fun onDestroyView() {

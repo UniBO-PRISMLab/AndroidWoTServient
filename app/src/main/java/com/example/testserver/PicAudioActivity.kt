@@ -22,6 +22,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.preference.PreferenceManager
 import com.fasterxml.jackson.databind.node.JsonNodeFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -236,13 +237,68 @@ class PicAudioActivity : AppCompatActivity() {
 
     private suspend fun connectToThing() {
         try {
-            val url = "http://localhost:8080/smartphone"
+            // Aspetta che il server sia pronto
+            val serverReady = waitForServerStart()
+            if (!serverReady) {
+                Log.e("MEDIA", "Server non disponibile dopo timeout")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@PicAudioActivity, "Server non disponibile", Toast.LENGTH_LONG).show()
+                }
+                return
+            }
+
+            // Leggi le preferenze per l'hostname e porta
+            val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this@PicAudioActivity)
+            val port = sharedPrefs.getString("server_port", "8080")?.toIntOrNull() ?: 8080
+            val useLocalIp = sharedPrefs.getBoolean("use_local_ip", false)
+            val customHostname = sharedPrefs.getString("server_hostname", "")
+
+            val actualHostname = when {
+                !useLocalIp -> "localhost"
+                !customHostname.isNullOrBlank() -> customHostname
+                else -> getLocalIpAddress() ?: "localhost"
+            }
+
+            val url = "http://$actualHostname:$port/smartphone"
             val td = wot.requestThingDescription(url)
             smartphoneThing = wot.consume(td)
             Log.d("MEDIA", "Connesso a Smartphone Thing")
         } catch (e: Exception) {
             Log.e("MEDIA", "Errore connessione a Smartphone Thing: ", e)
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@PicAudioActivity, "Errore di connessione: ${e.message}", Toast.LENGTH_LONG).show()
+            }
         }
+    }
+
+    private suspend fun waitForServerStart(maxRetries: Int = 10, delayMillis: Long = 500): Boolean {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this@PicAudioActivity)
+        repeat(maxRetries) {
+            if (prefs.getBoolean("server_started", false)) return true
+            delay(delayMillis)
+        }
+        return false
+    }
+
+    private fun getLocalIpAddress(): String? {
+        try {
+            val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
+            while (interfaces.hasMoreElements()) {
+                val networkInterface = interfaces.nextElement()
+                if (networkInterface.isLoopback || !networkInterface.isUp) continue
+
+                val addresses = networkInterface.inetAddresses
+                while (addresses.hasMoreElements()) {
+                    val address = addresses.nextElement()
+                    if (!address.isLoopbackAddress && address is java.net.Inet4Address) {
+                        return address.hostAddress
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("MEDIA", "Errore ottenimento IP locale: ", e)
+        }
+        return null
     }
 
     private fun executeTakePhoto() {
