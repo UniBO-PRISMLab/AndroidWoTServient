@@ -109,7 +109,31 @@
             android:id="@+id/magnitudeButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Button" />
+            android:text="Calcola Magnitudine" />
+
+        <Button
+            android:id="@+id/northButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Calcola Direzione Nord" />
+
+        <Button
+            android:id="@+id/orientationButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Calcola Orientamento" />
+
+        <Button
+            android:id="@+id/inclinationButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Calcola Inclinazione" />
+
+        <Button
+            android:id="@+id/inPocketButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Verifica se in Tasca" />
 
     </LinearLayout>
 

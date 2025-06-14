@@ -12,6 +12,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
+import com.fasterxml.jackson.databind.node.ArrayNode
 import com.fasterxml.jackson.databind.node.JsonNodeFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,8 +33,22 @@ class SensorActionsFragment : Fragment() {
     private lateinit var progressBar: ProgressBar
     private lateinit var refreshButton: Button
     private lateinit var actionsContainer: LinearLayout
+
     private lateinit var magnitudeButton: Button
     private lateinit var magnitudeStatusText: TextView
+
+    private lateinit var northButton: Button
+    private lateinit var northStatusText: TextView
+
+    private lateinit var orientationButton: Button
+    private lateinit var orientationStatusText: TextView
+
+    private lateinit var inclinationButton: Button
+    private lateinit var inclinationStatusText: TextView
+
+    private lateinit var inPocketButton: Button
+    private lateinit var inPocketStatusText: TextView
+
 
     private val coroutineScope = CoroutineScope(Dispatchers.Main + Job())
     private val jsonNodeFactory = JsonNodeFactory.instance
@@ -64,12 +79,40 @@ class SensorActionsFragment : Fragment() {
         refreshButton = view.findViewById(R.id.refreshButton)
         actionsContainer = view.findViewById(R.id.actionsContainer)
         magnitudeButton = view.findViewById(R.id.magnitudeButton)
+        northButton = view.findViewById(R.id.northButton)
+        orientationButton = view.findViewById(R.id.orientationButton)
+        inclinationButton = view.findViewById(R.id.inclinationButton)
+        inPocketButton = view.findViewById(R.id.inPocketButton)
 
         wot = WoTClientHolder.wot!!
 
         // Crea il TextView per lo stato della magnitudine
         magnitudeStatusText = TextView(requireContext()).apply {
             text = "Magnitudine: Non calcolata"
+            textSize = 18f
+            setTextColor(resources.getColor(android.R.color.darker_gray, null))
+            setPadding(16, 16, 16, 16)
+        }
+        northStatusText = TextView(requireContext()).apply {
+            text = "Direzione Nord: Non calcolata"
+            textSize = 18f
+            setTextColor(resources.getColor(android.R.color.darker_gray, null))
+            setPadding(16, 16, 16, 16)
+        }
+        orientationStatusText = TextView(requireContext()).apply {
+            text = "Orientamento: Non calcolato"
+            textSize = 18f
+            setTextColor(resources.getColor(android.R.color.darker_gray, null))
+            setPadding(16, 16, 16, 16)
+        }
+        inclinationStatusText = TextView(requireContext()).apply {
+            text = "Inclinazione: Non calcolata"
+            textSize = 18f
+            setTextColor(resources.getColor(android.R.color.darker_gray, null))
+            setPadding(16, 16, 16, 16)
+        }
+        inPocketStatusText = TextView(requireContext()).apply {
+            text = "In tasca: Non verificato"
             textSize = 18f
             setTextColor(resources.getColor(android.R.color.darker_gray, null))
             setPadding(16, 16, 16, 16)
@@ -83,10 +126,22 @@ class SensorActionsFragment : Fragment() {
         // Aggiungi il TextView della magnitudine al container
         actionsContainer.removeAllViews()
         actionsContainer.addView(magnitudeStatusText)
+        actionsContainer.addView(northStatusText)
+        actionsContainer.addView(orientationStatusText)
+        actionsContainer.addView(inclinationStatusText)
+        actionsContainer.addView(inPocketStatusText)
 
         // Inizialmente disabilita il pulsante finché non è connesso
         magnitudeButton.isEnabled = false
-        magnitudeButton.alpha = 0.5f
+        northButton.isEnabled = false
+        orientationButton.isEnabled = false
+        inclinationButton.isEnabled = false
+        inPocketButton.isEnabled = false
+
+        val buttons = listOf(northButton, orientationButton, inclinationButton, inPocketButton)
+        buttons.forEach {
+            it.alpha = 0.5f
+        }
     }
 
     private fun setupEventListeners() {
@@ -94,9 +149,11 @@ class SensorActionsFragment : Fragment() {
             refreshConnection()
         }
 
-        magnitudeButton.setOnClickListener {
-            getMagnitude()
-        }
+        magnitudeButton.setOnClickListener { getMagnitude() }
+        northButton.setOnClickListener { getNorthDirection() }
+        orientationButton.setOnClickListener { getOrientation() }
+        inclinationButton.setOnClickListener { getInclination() }
+        inPocketButton.setOnClickListener { checkInPocket() }
     }
 
     private fun refreshConnection() {
@@ -149,9 +206,11 @@ class SensorActionsFragment : Fragment() {
                 connectionStatus.text = "✓ Connesso al dispositivo"
                 connectionStatus.setTextColor(resources.getColor(android.R.color.holo_green_dark, null))
 
-                // Abilita il pulsante magnitudine
-                magnitudeButton.isEnabled = true
-                magnitudeButton.alpha = 1.0f
+                val allButtons = listOf(magnitudeButton, northButton, orientationButton, inclinationButton, inPocketButton)
+                allButtons.forEach {
+                    it.isEnabled = true
+                    it.alpha = 1.0f
+                }
             }
 
             Log.d("SENSOR", "Connesso a Smartphone Thing")
@@ -257,6 +316,177 @@ class SensorActionsFragment : Fragment() {
             Log.e("SENSOR", "Errore invocando getMagnitude: ", e)
         }
     }
+
+    private fun getNorthDirection() {
+        northButton.isEnabled = false
+        northButton.alpha = 0.5f
+        northStatusText.text = "Direzione Nord: Calcolo in corso..."
+        northStatusText.setTextColor(resources.getColor(android.R.color.holo_blue_dark, null))
+
+        coroutineScope.launch { invokeGetNorthDirection() }
+    }
+
+    private suspend fun invokeGetNorthDirection() {
+        try {
+            val result = smartphoneThing?.invokeAction("getNorthDirection")
+            withContext(Main) {
+                if (result != null) {
+                    val value = result.doubleValue() ?: -1.0
+                    if (value >= 0) {
+                        northStatusText.text = "Direzione Nord: ${String.format("%.2f", value)}°"
+                        northStatusText.setTextColor(resources.getColor(android.R.color.holo_green_dark, null))
+                    } else {
+                        northStatusText.text = "Direzione Nord: Errore nel calcolo"
+                        northStatusText.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
+                    }
+                } else {
+                    northStatusText.text = "Direzione Nord: Risposta non valida"
+                    northStatusText.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
+                }
+                northButton.isEnabled = true
+                northButton.alpha = 1.0f
+            }
+        } catch (e: Exception) {
+            withContext(Main) {
+                northStatusText.text = "Direzione Nord: Errore di comunicazione"
+                northStatusText.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
+                northButton.isEnabled = true
+                northButton.alpha = 1.0f
+                Toast.makeText(requireContext(), "Errore calcolo direzione nord", Toast.LENGTH_LONG).show()
+            }
+            Log.e("SENSOR", "Errore getNorthDirection: ", e)
+        }
+    }
+
+    // 1) getOrientation
+    private fun getOrientation() {
+        orientationButton.isEnabled = false
+        orientationButton.alpha = 0.5f
+        orientationStatusText.text = "Orientamento: Calcolo in corso..."
+        orientationStatusText.setTextColor(resources.getColor(android.R.color.holo_blue_dark, null))
+
+        coroutineScope.launch { invokeGetOrientation() }
+    }
+
+    private suspend fun invokeGetOrientation() {
+        try {
+            val result = smartphoneThing?.invokeAction("getOrientation")
+            withContext(Main) {
+                if (result != null && result.isArray) {
+                    val arr = result as ArrayNode
+                    if (arr.size() >= 3) {
+                        val azimuth = arr[0].floatValue()
+                        val pitch = arr[1].floatValue()
+                        val roll = arr[2].floatValue()
+                        orientationStatusText.text = "Orientamento:\nAzimuth: ${"%.2f".format(azimuth)}°\nPitch: ${"%.2f".format(pitch)}°\nRoll: ${"%.2f".format(roll)}°"
+                        orientationStatusText.setTextColor(resources.getColor(android.R.color.holo_green_dark, null))
+                    } else {
+                        orientationStatusText.text = "Orientamento: Dati insufficienti"
+                        orientationStatusText.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
+                    }
+                } else {
+                    orientationStatusText.text = "Orientamento: Risposta non valida"
+                    orientationStatusText.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
+                }
+                orientationButton.isEnabled = true
+                orientationButton.alpha = 1.0f
+            }
+        } catch (e: Exception) {
+            withContext(Main) {
+                orientationStatusText.text = "Orientamento: Errore di comunicazione"
+                orientationStatusText.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
+                orientationButton.isEnabled = true
+                orientationButton.alpha = 1.0f
+                Toast.makeText(requireContext(), "Errore calcolo orientamento", Toast.LENGTH_LONG).show()
+            }
+            Log.e("SENSOR", "Errore getOrientation: ", e)
+        }
+    }
+
+    // 2) getInclination
+    private fun getInclination() {
+        inclinationButton.isEnabled = false
+        inclinationButton.alpha = 0.5f
+        inclinationStatusText.text = "Inclinazione: Calcolo in corso..."
+        inclinationStatusText.setTextColor(resources.getColor(android.R.color.holo_blue_dark, null))
+
+        coroutineScope.launch { invokeGetInclination() }
+    }
+
+    private suspend fun invokeGetInclination() {
+        try {
+            val result = smartphoneThing?.invokeAction("getInclination")
+            withContext(Main) {
+                if (result != null) {
+                    val value = result.doubleValue() ?: -1.0
+                    if (value >= 0) {
+                        inclinationStatusText.text = "Inclinazione: ${"%.2f".format(value)}°"
+                        inclinationStatusText.setTextColor(resources.getColor(android.R.color.holo_green_dark, null))
+                    } else {
+                        inclinationStatusText.text = "Inclinazione: Errore nel calcolo"
+                        inclinationStatusText.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
+                    }
+                } else {
+                    inclinationStatusText.text = "Inclinazione: Risposta non valida"
+                    inclinationStatusText.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
+                }
+                inclinationButton.isEnabled = true
+                inclinationButton.alpha = 1.0f
+            }
+        } catch (e: Exception) {
+            withContext(Main) {
+                inclinationStatusText.text = "Inclinazione: Errore di comunicazione"
+                inclinationStatusText.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
+                inclinationButton.isEnabled = true
+                inclinationButton.alpha = 1.0f
+                Toast.makeText(requireContext(), "Errore calcolo inclinazione", Toast.LENGTH_LONG).show()
+            }
+            Log.e("SENSOR", "Errore getInclination: ", e)
+        }
+    }
+
+    // 3) checkInPocket
+    private fun checkInPocket() {
+        inPocketButton.isEnabled = false
+        inPocketButton.alpha = 0.5f
+        inPocketStatusText.text = "Verifica in tasca: In corso..."
+        inPocketStatusText.setTextColor(resources.getColor(android.R.color.holo_blue_dark, null))
+
+        coroutineScope.launch { invokeCheckInPocket() }
+    }
+
+    private suspend fun invokeCheckInPocket() {
+        try {
+            val result = smartphoneThing?.invokeAction("checkInPocket")
+            withContext(Main) {
+                if (result != null) {
+                    val inPocket = result.booleanValue() ?: false
+                    if (inPocket) {
+                        inPocketStatusText.text = "Dispositivo probabilmente in tasca"
+                        inPocketStatusText.setTextColor(resources.getColor(android.R.color.holo_green_dark, null))
+                    } else {
+                        inPocketStatusText.text = "Dispositivo probabilmente NON in tasca"
+                        inPocketStatusText.setTextColor(resources.getColor(android.R.color.holo_orange_dark, null))
+                    }
+                } else {
+                    inPocketStatusText.text = "Verifica in tasca: Risposta non valida"
+                    inPocketStatusText.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
+                }
+                inPocketButton.isEnabled = true
+                inPocketButton.alpha = 1.0f
+            }
+        } catch (e: Exception) {
+            withContext(Main) {
+                inPocketStatusText.text = "Verifica in tasca: Errore di comunicazione"
+                inPocketStatusText.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
+                inPocketButton.isEnabled = true
+                inPocketButton.alpha = 1.0f
+                Toast.makeText(requireContext(), "Errore verifica tasca", Toast.LENGTH_LONG).show()
+            }
+            Log.e("SENSOR", "Errore checkInPocket: ", e)
+        }
+    }
+
 
     override fun onDestroy() {
         super.onDestroy()
