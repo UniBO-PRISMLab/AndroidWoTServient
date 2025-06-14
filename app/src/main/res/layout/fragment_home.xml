@@ -1,23 +1,70 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
-    android:gravity="center"
-    android:padding="24dp"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:padding="24dp"
+    android:gravity="center"
+    android:background="@android:color/white">
 
+    <!-- Header -->
     <TextView
-        android:id="@+id/main_content"
-        android:text="Benvenuto"
-        android:textSize="18sp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Sensori Smartphone"
+        android:textSize="24sp"
+        android:textStyle="bold"
         android:gravity="center"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        android:layout_marginBottom="32dp"
+        android:textColor="@android:color/black" />
 
-    <Button
-        android:id="@+id/startBtn"
-        android:text="Avvia Server"
-        android:layout_marginTop="16dp"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+    <!-- Welcome Card -->
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="4dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="32dp"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/main_content"
+                android:text="🎉 Benvenuto nell'App Sensori!"
+                android:textSize="18sp"
+                android:gravity="center"
+                android:textColor="@android:color/black"
+                android:layout_marginBottom="24dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Premi il pulsante per iniziare"
+                android:textSize="14sp"
+                android:textColor="@android:color/darker_gray"
+                android:layout_marginBottom="24dp"
+                android:gravity="center" />
+
+            <Button
+                android:id="@+id/startBtn"
+                android:text="🚀 Avvia Server"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@android:color/holo_green_light"
+                android:textColor="@android:color/white"
+                android:textSize="16sp"
+                android:paddingVertical="12dp" />
+
+        </LinearLayout>
+
+    </androidx.cardview.widget.CardView>
+
 </LinearLayout>

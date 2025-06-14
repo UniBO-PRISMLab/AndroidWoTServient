@@ -1,50 +1,159 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
-    android:padding="16dp"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:background="@android:color/white">
 
-    <ImageView
-        android:id="@+id/photoImageView"
+    <LinearLayout
+        android:orientation="vertical"
+        android:padding="16dp"
         android:layout_width="match_parent"
-        android:layout_height="200dp"
-        android:scaleType="centerInside"
-        android:contentDescription="Foto catturata"/>
+        android:layout_height="wrap_content">
 
-    <Button
-        android:id="@+id/takePhotoButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Scatta Foto"/>
+        <!-- Header -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Media e Audio"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="16dp"
+            android:textColor="@android:color/black" />
 
-    <Button
-        android:id="@+id/startRecordingButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Registra Audio (5s)"
-        android:layout_marginTop="16dp"/>
+        <!-- Photo Card -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
 
-    <Button
-        android:id="@+id/stopRecordingButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Stop Audio"
-        android:layout_marginTop="16dp"/>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
 
-    <Button
-        android:id="@+id/playRecordingButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Riproduci Audio"
-        android:layout_marginTop="16dp"/>
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="📷 Fotocamera"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@android:color/black"
+                    android:layout_marginBottom="8dp" />
 
-    <TextView
-        android:id="@+id/audioTextView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Audio base64 info"
-        android:paddingTop="16dp"/>
+                <ImageView
+                    android:id="@+id/photoImageView"
+                    android:layout_width="match_parent"
+                    android:layout_height="200dp"
+                    android:scaleType="centerInside"
+                    android:background="@android:color/darker_gray"
+                    android:layout_marginBottom="12dp"
+                    android:contentDescription="Foto catturata"/>
 
-</LinearLayout>
+                <Button
+                    android:id="@+id/takePhotoButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Scatta Foto"
+                    android:background="@android:color/holo_blue_light"
+                    android:textColor="@android:color/white" />
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- Audio Recording Card -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="🎤 Registrazione Audio"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@android:color/black"
+                    android:layout_marginBottom="12dp" />
+
+                <Button
+                    android:id="@+id/startRecordingButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Registra Audio (5s)"
+                    android:background="@android:color/holo_red_light"
+                    android:textColor="@android:color/white"
+                    android:layout_marginBottom="8dp" />
+
+                <Button
+                    android:id="@+id/stopRecordingButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Stop Audio"
+                    android:background="@android:color/holo_orange_light"
+                    android:textColor="@android:color/white"
+                    android:layout_marginBottom="8dp" />
+
+                <Button
+                    android:id="@+id/playRecordingButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Riproduci Audio"
+                    android:background="@android:color/holo_green_light"
+                    android:textColor="@android:color/white" />
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- Audio Info Card -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="ℹ️ Informazioni Audio"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@android:color/black"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/audioTextView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Audio base64 info"
+                    android:textColor="@android:color/darker_gray"
+                    android:textSize="14sp" />
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+    </LinearLayout>
+
+</ScrollView>
