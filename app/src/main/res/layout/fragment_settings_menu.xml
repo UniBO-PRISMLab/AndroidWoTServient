@@ -1,71 +1,80 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/settingsMenuLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp"
-    android:background="@android:color/white">
+    android:fillViewport="true"
+    android:background="@color/lightBackground">
 
-    <!-- Header -->
-    <TextView
+    <LinearLayout
+        android:id="@+id/settingsMenuLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Impostazioni"
-        android:textSize="20sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:layout_marginBottom="24dp"
-        android:textColor="@android:color/black" />
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:gravity="center">
 
-    <!-- Settings Card -->
-    <androidx.cardview.widget.CardView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        app:cardCornerRadius="8dp"
-        app:cardElevation="4dp">
-
-        <LinearLayout
+        <!-- Header -->
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="32dp"
-            android:gravity="center">
+            android:text="Impostazioni"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="24dp"
+            android:textColor="@android:color/black" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="⚙️ Configura l'applicazione"
-                android:textSize="16sp"
-                android:textColor="@android:color/darker_gray"
-                android:layout_marginBottom="24dp"
-                android:gravity="center" />
+        <!-- Settings Card -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
 
-            <Button
-                android:id="@+id/selectSensorsBtn"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="📊 Seleziona Sensori"
-                android:background="@android:color/holo_blue_light"
-                android:textColor="@android:color/white"
-                android:textSize="16sp"
-                android:paddingVertical="12dp"
-                android:layout_marginBottom="16dp" />
+                android:orientation="vertical"
+                android:padding="32dp"
+                android:gravity="center">
 
-            <Button
-                android:id="@+id/serverSettingsBtn"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="🔧 Impostazioni Avanzate"
-                android:background="@android:color/holo_green_light"
-                android:textColor="@android:color/white"
-                android:textSize="16sp"
-                android:paddingVertical="12dp" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="⚙️ Configura l'applicazione"
+                    android:textSize="16sp"
+                    android:textColor="@android:color/darker_gray"
+                    android:layout_marginBottom="24dp"
+                    android:gravity="center" />
 
-        </LinearLayout>
+                <Button
+                    android:id="@+id/selectSensorsBtn"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="📊 Seleziona Sensori"
+                    android:background="@android:color/holo_blue_light"
+                    android:textColor="@android:color/white"
+                    android:textSize="16sp"
+                    android:paddingVertical="12dp"
+                    android:layout_marginBottom="16dp" />
 
-    </androidx.cardview.widget.CardView>
+                <Button
+                    android:id="@+id/serverSettingsBtn"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="🔧 Impostazioni Avanzate"
+                    android:background="@android:color/holo_green_light"
+                    android:textColor="@android:color/white"
+                    android:textSize="16sp"
+                    android:paddingVertical="12dp" />
 
-</LinearLayout>
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+    </LinearLayout>
+
+</ScrollView>

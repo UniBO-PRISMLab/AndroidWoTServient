@@ -7,11 +7,17 @@
             android:title="Porta HTTP"
             android:inputType="number"
             android:summary="Inserisci la porta (es. 8080)"
-            android:defaultValue="8080" />
+            android:defaultValue="8080"
+            android:selectable="false"/>
         <EditTextPreference
             android:key="server_hostname"
             android:title="Hostname"
-            android:defaultValue="localhost" />
+            android:defaultValue="localhost"
+            android:selectable="false"/>
     </PreferenceCategory>
+
+    <Preference
+        android:title="⚠️ Non ancora disponibile"
+        android:selectable="false" />
 
 </PreferenceScreen>

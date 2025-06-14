@@ -4,8 +4,9 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/white">
+    android:background="@color/lightBackground">
 
+    <!-- ScrollView per i dati dei sensori -->
     <ScrollView
         android:id="@+id/scrollView"
         android:layout_width="0dp"
@@ -14,7 +15,8 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toTopOf="@+id/footerCard"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintEnd_toEndOf="parent"
+        android:background="@color/lightBackground">
 
         <LinearLayout
             android:id="@+id/sensorDataContainer"
@@ -26,71 +28,97 @@
 
     </ScrollView>
 
-    <!-- Footer Card -->
+    <!-- Footer Card con altezza limitata -->
     <androidx.cardview.widget.CardView
         android:id="@+id/footerCard"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_margin="16dp"
+        android:layout_margin="8dp"
         app:cardCornerRadius="8dp"
         app:cardElevation="4dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHeight_max="200dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
             android:orientation="vertical"
-            android:padding="16dp"
-            android:gravity="center_horizontal">
+            android:padding="12dp">
 
-            <Button
-                android:id="@+id/openActionsButton"
-                android:layout_width="wrap_content"
+            <!-- Riga per il bottone azioni e stato connessione -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Apri Azioni Sensori"
-                android:layout_marginBottom="16dp"
-                android:background="@android:color/holo_blue_light"
-                android:textColor="@android:color/white"
-                android:paddingHorizontal="24dp"
-                android:paddingVertical="8dp" />
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:layout_marginBottom="8dp">
 
-            <!-- Stato Connessione -->
-            <TextView
-                android:id="@+id/connectionStatus"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="⏳ In Attesa..."
-                android:textSize="20sp"
-                android:textStyle="bold"
-                android:textColor="@android:color/black"
-                android:layout_marginBottom="8dp" />
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/autoUpdateSwitch"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:text="Auto Update"
+                    android:textColor="@android:color/black"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/connectionStatus"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="⏳ In Attesa..."
+                    android:textColor="@android:color/black"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:gravity="center" />
+
+            </LinearLayout>
 
             <!-- Progress Bar -->
             <ProgressBar
                 android:id="@+id/progressBar"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:visibility="gone"
                 style="?android:attr/progressBarStyle"
-                android:layout_marginBottom="16dp" />
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginBottom="8dp"
+                android:visibility="gone" />
 
-            <androidx.appcompat.widget.SwitchCompat
-                android:id="@+id/autoUpdateSwitch"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Aggiornamento automatico"
-                android:textColor="@android:color/black"
-                android:layout_marginBottom="16dp" />
-
-            <Button
-                android:id="@+id/refreshButton"
+            <!-- Riga per switch e bottone refresh -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Aggiorna Valori!"
-                android:background="@android:color/holo_green_light"
-                android:textColor="@android:color/white" />
+                android:orientation="horizontal"
+                android:gravity="center">
+
+                <Button
+                    android:id="@+id/openActionsButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:background="@android:color/holo_blue_light"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="8dp"
+                    android:text="Azioni"
+                    android:textColor="@android:color/white"
+                    android:textSize="14sp" />
+
+                <Button
+                    android:id="@+id/refreshButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@android:color/holo_green_light"
+                    android:text="Aggiorna"
+                    android:textColor="@android:color/white"
+                    android:textSize="14sp" />
+
+            </LinearLayout>
 
         </LinearLayout>
 
