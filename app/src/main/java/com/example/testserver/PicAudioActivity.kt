@@ -40,7 +40,6 @@ class PicAudioActivity : AppCompatActivity() {
     private var smartphoneThing: WoTConsumedThing? = null
 
     private lateinit var photoImageView: ImageView
-    private lateinit var audioTextView: TextView
     private lateinit var takePhotoButton: Button
     private lateinit var startRecordingButton: Button
     private lateinit var stopRecordingButton: Button
@@ -96,7 +95,6 @@ class PicAudioActivity : AppCompatActivity() {
 
     private fun initializeViews(rootView: View) {
         photoImageView = rootView.findViewById(R.id.photoImageView)
-        audioTextView = rootView.findViewById(R.id.audioTextView)
         takePhotoButton = rootView.findViewById(R.id.takePhotoButton)
         startRecordingButton = rootView.findViewById(R.id.startRecordingButton)
         stopRecordingButton = rootView.findViewById(R.id.stopRecordingButton)
@@ -238,7 +236,6 @@ class PicAudioActivity : AppCompatActivity() {
 
     private suspend fun connectToThing() {
         try {
-            // TODO Controlla url corretto
             val url = "http://localhost:8080/smartphone"
             val td = wot.requestThingDescription(url)
             smartphoneThing = wot.consume(td)
