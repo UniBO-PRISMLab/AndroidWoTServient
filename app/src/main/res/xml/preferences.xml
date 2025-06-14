@@ -25,6 +25,10 @@
             android:dependency="use_local_ip"
             android:selectable="false"/>
 
+        <Preference
+            android:title="⚠️ Non funzionante: problema con la repository kotlin-wot/HttpProtocolServer"
+            android:summary="Il supporto a hostname/IP personalizzati non è ancora implementato correttamente"
+            android:selectable="false" />
 
     </PreferenceCategory>
 

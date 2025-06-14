@@ -200,7 +200,9 @@ class StatsFragment : Fragment() {
     }
 
     private fun updateSensorSpinner() {
-        val properties = SensorDataHolder.getAllProperties().sorted()
+        val properties = SensorDataHolder.getAllProperties()
+            .filterNot { it.contains("photo") || it.contains("audio") }
+            .sorted()
 
         if (properties.isEmpty()) {
             val emptyList = listOf("Nessun sensore disponibile")
