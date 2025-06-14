@@ -15,6 +15,7 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.core.content.ContextCompat
 
 class DataFragment : Fragment() {
 
@@ -115,14 +116,35 @@ class DataFragment : Fragment() {
         mediaButton?.isEnabled = isEnabled
         sensorButton?.isEnabled = isEnabled
 
+        // Aggiorna i colori e la trasparenza per rendere visibile lo stato
+        updateButtonAppearance(mediaButton, isEnabled, android.R.color.holo_blue_light)
+        updateButtonAppearance(sensorButton, isEnabled, android.R.color.holo_green_light)
+
         when (serverStatus) {
             ServerStatus.STARTING -> {
-                mediaButton?.text = "Media (Avvio...)"
-                sensorButton?.text = "Sensori (Avvio...)"
+                mediaButton?.text = "📱 Media (Avvio...)"
+                sensorButton?.text = "📊 Sensori (Avvio...)"
             }
-            else -> {
-                mediaButton?.text = "Media"
-                sensorButton?.text = "Sensori"
+            ServerStatus.RUNNING -> {
+                mediaButton?.text = "📱 Apri Media (Foto/Audio)"
+                sensorButton?.text = "📊 Visualizza Dati Sensori"
+            }
+            ServerStatus.STOPPED -> {
+                mediaButton?.text = "📱 Media (Server Spento)"
+                sensorButton?.text = "📊 Sensori (Server Spento)"
+            }
+        }
+    }
+
+    private fun updateButtonAppearance(button: Button?, enabled: Boolean, enabledColorRes: Int) {
+        button?.let {
+            if (enabled) {
+                it.setBackgroundColor(ContextCompat.getColor(requireContext(), enabledColorRes))
+                it.alpha = 1.0f
+            } else {
+                // Colore grigio quando disabilitato
+                it.setBackgroundColor(ContextCompat.getColor(requireContext(), android.R.color.darker_gray))
+                it.alpha = 0.6f
             }
         }
     }
