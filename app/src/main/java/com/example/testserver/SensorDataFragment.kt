@@ -35,6 +35,7 @@ class SensorDataFragment : Fragment() {
     private lateinit var sensorDataContainer: LinearLayout
     private lateinit var autoUpdateSwitch: SwitchCompat
     private var autoUpdateJob: kotlinx.coroutines.Job? = null
+    private lateinit var openActionButton: Button
 
     private fun getFriendlyName(sensor: Sensor): String {
         return when (sensor.type) {
@@ -81,6 +82,7 @@ class SensorDataFragment : Fragment() {
         progressBar = view.findViewById(R.id.progressBar)
         refreshButton = view.findViewById(R.id.refreshButton)
         sensorDataContainer = view.findViewById(R.id.sensorDataContainer)
+        openActionButton = view.findViewById(R.id.openActionsButton)
 
         coroutineScope.launch {
             withContext(Dispatchers.Main) {
@@ -204,6 +206,13 @@ class SensorDataFragment : Fragment() {
             } else {
                 stopAutoUpdate()
             }
+        }
+
+        openActionButton.setOnClickListener {
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.fragment_container, SensorActionsFragment())
+                .addToBackStack(null)
+                .commit()
         }
     }
 

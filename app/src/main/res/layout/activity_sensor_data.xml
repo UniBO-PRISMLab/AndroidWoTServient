@@ -36,6 +36,14 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" >
 
+        <Button
+            android:id="@+id/openActionsButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Apri Azioni Sensori"
+            android:layout_marginTop="8dp"
+            android:layout_gravity="center_horizontal"/>
+
             <!-- Stato Connessione -->
             <TextView
                 android:id="@+id/connectionStatus"

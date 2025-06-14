@@ -150,6 +150,10 @@ class Server(
                 title = "Stop recording"
                 description = "Stop recording and updates 'audio' property"
             }
+            action<Unit, Float>("getMagnitude") {
+                title = "Get accelerometer magnitude"
+                description = "Calculates the magnitude of acceleration from accelerometer data"
+            }
         }.apply {
             // Aggiungi i property read handlers
             for (sensor in enabledSensors) {
@@ -238,6 +242,34 @@ class Server(
                     Log.e("SERVER", "Errore: Input Base64 per updateAudio è nullo.")
                 }
                 InteractionInput.Value(jsonNodeFactory.nullNode())
+            }
+            setActionHandler("getMagnitude") { _: WoTInteractionOutput, _: InteractionOptions? ->
+                ServientStats.logRequest(thingId, "invokeAction", "getMagnitude")
+
+                // Trova se l'accelerometro è abilitato tra i sensori
+                val accelerometerSensor = enabledSensors.find { it.type == Sensor.TYPE_ACCELEROMETER }
+
+                if (accelerometerSensor != null) {
+                    // Leggi i valori dell'accelerometro
+                    val accelerometerValues = readSensorValues(context, Sensor.TYPE_ACCELEROMETER)
+
+                    if (accelerometerValues.size >= 3) {
+                        // Calcola la magnitudine: sqrt(x² + y² + z²)
+                        val x = accelerometerValues[0]
+                        val y = accelerometerValues[1]
+                        val z = accelerometerValues[2]
+                        val magnitude = kotlin.math.sqrt(x*x + y*y + z*z)
+
+                        Log.d("SERVER", "Magnitudine accelerometro calcolata: $magnitude (x=$x, y=$y, z=$z)")
+                        InteractionInput.Value(jsonNodeFactory.numberNode(magnitude))
+                    } else {
+                        Log.w("SERVER", "Dati accelerometro insufficienti: ${accelerometerValues.size} valori")
+                        InteractionInput.Value(jsonNodeFactory.numberNode(-1.0f))
+                    }
+                } else {
+                    Log.w("SERVER", "Accelerometro non abilitato per getMagnitude")
+                    InteractionInput.Value(jsonNodeFactory.numberNode(-1.0f))
+                }
             }
         }
 
