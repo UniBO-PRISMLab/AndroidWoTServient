@@ -9,15 +9,22 @@
             android:summary="Inserisci la porta (es. 8080)"
             android:defaultValue="8080"
             android:selectable="false"/>
+
+        <SwitchPreference
+            android:key="use_local_ip"
+            android:title="Usa IP locale"
+            android:summary="Esponi server su IP locale invece di localhost"
+            android:defaultValue="false" />
+
         <EditTextPreference
             android:key="server_hostname"
-            android:title="Hostname"
-            android:defaultValue="localhost"
+            android:title="Hostname personalizzato"
+            android:summary="Lascia vuoto per auto-rilevamento IP locale"
+            android:defaultValue=""
+            android:dependency="use_local_ip"
             android:selectable="false"/>
-    </PreferenceCategory>
 
-    <Preference
-        android:title="⚠️ Non ancora disponibile"
-        android:selectable="false" />
+
+    </PreferenceCategory>
 
 </PreferenceScreen>

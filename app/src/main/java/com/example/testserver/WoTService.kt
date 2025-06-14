@@ -41,10 +41,10 @@ class WoTService : Service() {
                 coroutineScope.launch {
                     serverMutex.withLock {
                         when (updatedType) {
-                            "port" -> {
-                                // Cambio porta --> stop e riavvio
+                            "port", "hostname" -> {
+                                // Cambio porta o hostname --> stop e riavvio completo
                                 stopWoTServerInternal()
-                                Log.d("SERVER", "Riavvio Server")
+                                Log.d("SERVER", "Riavvio Server per cambio $updatedType")
                                 delay(1000)
                                 startWoTServerInternal()
                                 Log.d("SERVER", "Server riattivo!")
@@ -55,7 +55,7 @@ class WoTService : Service() {
                                 Log.d("SERVER", "Server aggiornato!")
                             }
                             "sensors_restart" -> {
-                                // Restart completo?
+                                // Restart completo
                                 Log.d("SERVER", "Restart completo per cambio sensori")
                                 setServerStarting(true)
                                 stopWoTServerInternal()
@@ -105,10 +105,26 @@ class WoTService : Service() {
             stopWoTServerInternal()
             val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
             val port = prefs.getString("server_port", "8080")?.toIntOrNull() ?: 8080
+            val useLocalIp = prefs.getBoolean("use_local_ip", false)
+            val customHostname = prefs.getString("server_hostname", "")
+
+            val actualHostname = when {
+                !useLocalIp -> "localhost"
+                !customHostname.isNullOrBlank() -> customHostname
+                else -> getLocalIpAddress() ?: "localhost"
+            }
+
             Log.d("SERVER", "Avvio Server sulla porta $port")
+            Log.d("SERVER", "Usa IP locale: $useLocalIp, Hostname: $actualHostname")
+
+            val httpServer = if (useLocalIp) {
+                HttpProtocolServer(bindPort = port)
+            } else {
+                HttpProtocolServer(bindPort = port, bindHost = "0.0.0.0")
+            }
 
             servient = Servient(
-                servers = listOf(HttpProtocolServer(bindPort = port)),
+                servers = listOf(httpServer),
                 clientFactories = listOf(HttpProtocolClientFactory())
             )
 
@@ -124,7 +140,19 @@ class WoTService : Service() {
             setServerStarting(false) // ora "started"
             prefs.edit().putBoolean("server_started", true).commit()
             sendServiceStatusBroadcast()
-            Log.d("SERVER", "Server avviato con successo sulla porta $port")
+
+            // Logging
+            if (useLocalIp) {
+                val localIp = getLocalIpAddress()
+                Log.d("SERVER", "Server avviato con successo!")
+                Log.d("SERVER", "Accesso locale: http://localhost:$port")
+                localIp?.let { ip ->
+                    Log.d("SERVER", "Accesso rete locale: http://$ip:$port")
+                }
+            } else {
+                Log.d("SERVER", "Server avviato con successo su http://localhost:$port")
+            }
+
         } catch (e: Exception) {
             Log.e("WOT_SERVICE", "Errore durante avvio server: ", e)
             setServerStarting(false)
@@ -261,6 +289,28 @@ class WoTService : Service() {
             servient = null
             isServerRunning = false
         }
+    }
+
+    // Aggiungi questa funzione helper per ottenere l'IP locale
+    private fun getLocalIpAddress(): String? {
+        try {
+            val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
+            while (interfaces.hasMoreElements()) {
+                val networkInterface = interfaces.nextElement()
+                if (networkInterface.isLoopback || !networkInterface.isUp) continue
+
+                val addresses = networkInterface.inetAddresses
+                while (addresses.hasMoreElements()) {
+                    val address = addresses.nextElement()
+                    if (!address.isLoopbackAddress && address is java.net.Inet4Address) {
+                        return address.hostAddress
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("WOT_SERVICE", "Errore ottenimento IP locale: ", e)
+        }
+        return null
     }
 
     private fun setServerStarting(starting: Boolean) {

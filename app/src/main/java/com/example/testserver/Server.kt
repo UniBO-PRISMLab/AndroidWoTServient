@@ -62,6 +62,16 @@ class Server(
         val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context)
         val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
+        val useLocalIp = sharedPrefs.getBoolean("use_local_ip", false)
+        val customHostname = sharedPrefs.getString("server_hostname", "")
+
+        val actualHostname = when {
+            !useLocalIp -> "localhost"
+            !customHostname.isNullOrBlank() -> customHostname
+            else -> getLocalIpAddress() ?: "localhost"
+        }
+        Log.d("SERVER", "Utilizzando hostname: $actualHostname (configurato: $customHostname)")
+
         val allowedSensorTypes = listOf(
             Sensor.TYPE_ACCELEROMETER,
             Sensor.TYPE_LIGHT,
@@ -93,6 +103,11 @@ class Server(
             id = thingId
             title = thingTitle
             description = thingDescription
+
+            if (useLocalIp) {
+                val port = sharedPrefs.getString("server_port", "8080")?.toIntOrNull() ?: 8080
+                base = "http://$actualHostname:$port/"
+            }
 
             // Aggiungi proprietà per ogni sensore abilitato
             for (sensor in enabledSensors) {
@@ -548,5 +563,26 @@ class Server(
         val allSensors = sensorManager.getSensorList(Sensor.TYPE_ALL)
             .filter { sensor -> sensor.type in allowedSensorTypes }
         return filterByNonWakeupSensors(allSensors)
+    }
+
+    private fun getLocalIpAddress(): String? {
+        try {
+            val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
+            while (interfaces.hasMoreElements()) {
+                val networkInterface = interfaces.nextElement()
+                if (networkInterface.isLoopback || !networkInterface.isUp) continue
+
+                val addresses = networkInterface.inetAddresses
+                while (addresses.hasMoreElements()) {
+                    val address = addresses.nextElement()
+                    if (!address.isLoopbackAddress && address is java.net.Inet4Address) {
+                        return address.hostAddress
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("SERVER", "Errore ottenimento IP locale: ", e)
+        }
+        return null
     }
 }
