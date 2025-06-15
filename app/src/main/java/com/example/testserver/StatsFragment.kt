@@ -17,6 +17,7 @@ import android.widget.Spinner
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import com.github.mikephil.charting.animation.Easing
 import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.charts.PieChart
@@ -136,12 +137,16 @@ class StatsFragment : Fragment() {
         uptimeText.text = "Uptime: ${ServientStats.uptimeSeconds()} s"
     }
 
+    private var hasAnimatedPieChart = false
+
     private fun setupPieChart() {
         val affordances = getAffordanceStatistics()
 
         if (affordances.isEmpty()) {
             pieChart.data = null
             pieChart.centerText = "Nessun dato disponibile"
+            pieChart.setEntryLabelColor(Color.DKGRAY)
+            pieChart.setCenterTextSize(14f)
             pieChart.invalidate()
             return
         }
@@ -150,22 +155,37 @@ class StatsFragment : Fragment() {
             PieEntry(count.toFloat(), cleanAffordanceName(affordance))
         }
 
-        pieChart.description.isEnabled = false
-        val dataSet = PieDataSet(entries, "Accessi per Thing")
-        dataSet.setColors(ColorTemplate.MATERIAL_COLORS.toList())
+        val dataSet = PieDataSet(entries, "")
+        dataSet.colors = listOf(
+            Color.parseColor("#4CAF50"), // Verde
+            Color.parseColor("#2196F3"), // Blu
+            Color.parseColor("#FFC107"), // Giallo
+            Color.parseColor("#FF5722"), // Arancione
+            Color.parseColor("#9C27B0")  // Viola
+        )
+        dataSet.valueTextColor = Color.WHITE
+        dataSet.valueTextSize = 13f
+        dataSet.sliceSpace = 2f
+
         val data = PieData(dataSet)
-        data.setDrawValues(true)
-        data.setValueTextSize(12f)
-        data.setValueTextColor(Color.WHITE)
-        pieChart.data = data
-        pieChart.setUsePercentValues(true)
-        pieChart.centerText = "Distribuzione Accessi"
-        pieChart.setEntryLabelColor(Color.BLACK)
-        pieChart.setEntryLabelTextSize(12f)
-        pieChart.animateY(1000)
-        pieChart.invalidate()
+
+        with(pieChart) {
+            this.data = data
+            setUsePercentValues(true)
+            setEntryLabelTextSize(12f)
+            setEntryLabelColor(Color.DKGRAY)
+            centerText = "Distribuzione Accessi"
+            setCenterTextSize(16f)
+            description.isEnabled = false
+            legend.isEnabled = false
+            if (!hasAnimatedPieChart) {
+                pieChart.animateY(800, Easing.EaseInOutQuad)
+                hasAnimatedPieChart = true
+            }
+        }
     }
 
+    private var hasAnimatedBarChart = false
     private fun setupBarChart() {
         if (ServientStats.interactionTypes.isEmpty()) {
             barChart.data = null
@@ -176,24 +196,42 @@ class StatsFragment : Fragment() {
         val entries = ServientStats.interactionTypes.entries.mapIndexed { index, (type, count) ->
             BarEntry(index.toFloat(), count.toFloat())
         }
-
         val labels = ServientStats.interactionTypes.keys.toList()
-        barChart.description.isEnabled = false
-        barChart.setFitBars(true)
-        barChart.axisRight.isEnabled = false
-        barChart.axisLeft.axisMinimum = 0f
-        barChart.xAxis.labelRotationAngle = -45f
-        barChart.legend.isEnabled = true
-        barChart.xAxis.valueFormatter = IndexAxisValueFormatter(labels)
-        barChart.xAxis.granularity = 1f
-        val dataSet = BarDataSet(entries, "Tipo di Interazione")
-        dataSet.colors = ColorTemplate.COLORFUL_COLORS.toList()
+
+        val dataSet = BarDataSet(entries, "")
+        dataSet.colors = listOf(
+            Color.parseColor("#03A9F4"), // Azzurro
+            Color.parseColor("#FF9800"), // Arancione
+            Color.parseColor("#8BC34A"), // Verde chiaro
+            Color.parseColor("#E91E63")  // Rosa
+        )
+        dataSet.valueTextSize = 12f
+        dataSet.valueTextColor = Color.DKGRAY
+
         val data = BarData(dataSet)
-        data.setValueTextSize(12f)
-        barChart.data = data
-        barChart.animateY(1000)
-        barChart.invalidate()
+        data.barWidth = 0.5f
+
+        with(barChart) {
+            this.data = data
+            description.isEnabled = false
+            setFitBars(true)
+            axisRight.isEnabled = false
+            axisLeft.axisMinimum = 0f
+            axisLeft.textColor = Color.DKGRAY
+            xAxis.labelRotationAngle = -30f
+            xAxis.textColor = Color.DKGRAY
+            xAxis.valueFormatter = IndexAxisValueFormatter(labels)
+            xAxis.position = com.github.mikephil.charting.components.XAxis.XAxisPosition.BOTTOM
+            xAxis.granularity = 1f
+            xAxis.setDrawGridLines(false)
+            legend.isEnabled = false
+            if (!hasAnimatedBarChart) {
+                barChart.animateY(1000)
+                hasAnimatedBarChart = true
+            }
+        }
     }
+
 
     private fun setupSensorSelector() {
         updateSensorSpinner()
@@ -269,19 +307,40 @@ class StatsFragment : Fragment() {
 
     private fun setupLineChart(property: String, friendlyName: String = property) {
         val history = SensorDataHolder.getHistory(property)
-        if (history.isEmpty()) return
+        if (history.isEmpty()) {
+            lineChart.clear()
+            lineChart.invalidate()
+            return
+        }
+
         val entries = history.mapIndexed { index, (_, value) ->
             Entry(index.toFloat(), value)
         }
+
         val dataSet = LineDataSet(entries, friendlyName)
-        dataSet.color = Color.BLUE
-        dataSet.valueTextColor = Color.BLACK
-        dataSet.setDrawCircles(false)
+        dataSet.color = Color.parseColor("#3F51B5")
+        dataSet.valueTextColor = Color.TRANSPARENT
+        dataSet.setDrawCircles(true)
         dataSet.setDrawValues(false)
-        val lineData = LineData(dataSet)
-        lineChart.data = lineData
-        lineChart.description.isEnabled = false
-        lineChart.invalidate()
+        dataSet.setCircleColor(Color.parseColor("#3F51B5"))
+        dataSet.circleRadius = 3f
+        dataSet.lineWidth = 2f
+        dataSet.mode = LineDataSet.Mode.CUBIC_BEZIER
+
+        val data = LineData(dataSet)
+
+        with(lineChart) {
+            this.data = data
+            description.isEnabled = false
+            axisRight.isEnabled = false
+            axisLeft.textColor = Color.DKGRAY
+            xAxis.textColor = Color.DKGRAY
+            xAxis.setDrawGridLines(false)
+            xAxis.position = com.github.mikephil.charting.components.XAxis.XAxisPosition.BOTTOM
+            legend.isEnabled = false
+            animateX(1000)
+            invalidate()
+        }
     }
 
     private fun startPeriodicUpdates() {
