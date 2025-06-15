@@ -1,5 +1,6 @@
 package com.example.testserver
 
+import android.app.ActivityManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -46,7 +47,9 @@ class DataFragment : Fragment() {
             handleSensorButtonClick()
         }
 
-        updateButtonStates()
+        // Inizializza i bottoni come disabilitati per sicurezza
+        initializeButtonsAsDisabled()
+
         return view
     }
 
@@ -59,11 +62,23 @@ class DataFragment : Fragment() {
             IntentFilter("SERVICE_STATUS_CHANGED"),
             flags
         )
+
+        // Pulisci eventuali stati residui dalle SharedPreferences
+        clearStaleServerStates()
+
+        // Aspetta un attimo prima di aggiornare per dare tempo al receiver di essere pronto
         Handler(Looper.getMainLooper()).postDelayed ({
             if (isAdded) {
                 updateButtonStates()
             }
-        }, 200)
+        }, 100)
+
+        // Backup: controlla di nuovo dopo un delay più lungo
+        Handler(Looper.getMainLooper()).postDelayed ({
+            if (isAdded) {
+                updateButtonStates()
+            }
+        }, 500)
     }
 
     override fun onPause() {
@@ -73,6 +88,15 @@ class DataFragment : Fragment() {
         } catch (e: Exception) {
             // Non fare nulla
         }
+    }
+
+    private fun initializeButtonsAsDisabled() {
+        mediaButton?.isEnabled = false
+        sensorButton?.isEnabled = false
+        mediaButton?.text = "📱 Media (Verifica in corso...)"
+        sensorButton?.text = "📊 Sensori (Verifica in corso...)"
+        updateButtonAppearance(mediaButton, false, android.R.color.holo_blue_light)
+        updateButtonAppearance(sensorButton, false, android.R.color.holo_green_light)
     }
 
     private fun handleMediaButtonClick() {
@@ -110,8 +134,13 @@ class DataFragment : Fragment() {
     }
 
     private fun updateButtonStates() {
+        if (!isAdded) return // Controlla se il fragment è ancora attached
+
         val serverStatus = getServerStatus()
         val isEnabled = serverStatus == ServerStatus.RUNNING
+
+        // Debug: aggiungi un log per vedere cosa succede
+        println("DataFragment - Server status: $serverStatus, Buttons enabled: $isEnabled")
 
         mediaButton?.isEnabled = isEnabled
         sensorButton?.isEnabled = isEnabled
@@ -149,10 +178,39 @@ class DataFragment : Fragment() {
         }
     }
 
+    private fun clearStaleServerStates() {
+        // Pulisce eventuali stati residui che potrebbero causare problemi
+        val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        val editor = prefs.edit()
+
+        // Verifica se il servizio è effettivamente in esecuzione
+        val isServiceRunning = isServiceRunning("com.example.testserver.WoTService") // Sostituisci con il nome del tuo servizio
+
+        if (!isServiceRunning) {
+            // Se il servizio non è in esecuzione, resetta gli stati
+            editor.putBoolean("server_started", false)
+            editor.putBoolean("server_starting", false)
+            editor.apply()
+            println("DataFragment - Servizio non in esecuzione, stati resettati")
+        } else {
+            println("DataFragment - Servizio trovato in esecuzione")
+        }
+    }
+
+    private fun isServiceRunning(serviceName: String): Boolean {
+        val activityManager = requireContext().getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        return activityManager.getRunningServices(Integer.MAX_VALUE).any { service ->
+            service.service.className == serviceName
+        }
+    }
+
     private fun getServerStatus(): ServerStatus {
         val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
         val isStarted = prefs.getBoolean("server_started", false)
         val isStarting = prefs.getBoolean("server_starting", false)
+
+        // Debug: mostra i valori delle SharedPreferences
+        println("DataFragment - SharedPrefs: server_started=$isStarted, server_starting=$isStarting")
 
         return when {
             isStarted -> ServerStatus.RUNNING
