@@ -440,7 +440,7 @@ class SensorActionsFragment : Fragment() {
                     val magnitude = result.doubleValue() ?: -1.0
 
                     if (magnitude >= 0) {
-                        magnitudeStatusText.text = "Magnitudine: ${String.format("%.2f", magnitude)}"
+                        magnitudeStatusText.text = "Magnitudine: ${String.format("%.2f", magnitude)} m/s²"
                         magnitudeStatusText.setTextColor(resources.getColor(android.R.color.holo_green_dark, null))
                         Toast.makeText(requireContext(), "Magnitudine calcolata: ${String.format("%.2f", magnitude)}", Toast.LENGTH_SHORT).show()
                     } else {

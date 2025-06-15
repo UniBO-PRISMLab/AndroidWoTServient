@@ -31,8 +31,6 @@ class Server(
     private val servient: Servient,
     private val context: Context
 ) {
-    var photoThing: PhotoThing? = null
-    var audioThing: AudioThing? = null
     private val jsonNodeFactory = JsonNodeFactory.instance
     private val activeThings = mutableMapOf<String, WoTExposedThing>()
 
@@ -694,12 +692,8 @@ class Server(
                 }
             }
 
-            photoThing = null
-            audioThing = null
             photoThingId = null
             audioThingId = null
-            MediaThings.photoThing = null
-            MediaThings.audioThing = null
 
             Log.d("SERVER_STOP", "Stop server completo!")
 
