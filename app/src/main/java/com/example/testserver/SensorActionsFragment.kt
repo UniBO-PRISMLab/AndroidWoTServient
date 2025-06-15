@@ -1,5 +1,11 @@
 package com.example.testserver
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.hardware.Sensor
+import android.hardware.SensorManager
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -49,9 +55,23 @@ class SensorActionsFragment : Fragment() {
     private lateinit var inPocketButton: Button
     private lateinit var inPocketStatusText: TextView
 
-
     private val coroutineScope = CoroutineScope(Dispatchers.Main + Job())
     private val jsonNodeFactory = JsonNodeFactory.instance
+
+    private val originalButtonTexts = mutableMapOf<Button, String>()
+
+    // BroadcastReceiver per ascoltare i cambi di preferenze
+    private val preferencesReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "PREFERENCES_UPDATED") {
+                val updateType = intent.getStringExtra("update_type")
+                if (updateType == "sensors") {
+                    Log.d("SENSOR_ACTIONS", "Aggiornamento preferenze sensori ricevuto")
+                    updateButtonStates()
+                }
+            }
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -66,6 +86,10 @@ class SensorActionsFragment : Fragment() {
         initializeViews(view)
         setupInitialState()
         setupEventListeners()
+
+        // Registra il BroadcastReceiver
+        val filter = IntentFilter("PREFERENCES_UPDATED")
+        requireActivity().registerReceiver(preferencesReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
 
         // Avvia connessione al dispositivo
         coroutineScope.launch {
@@ -84,9 +108,14 @@ class SensorActionsFragment : Fragment() {
         inclinationButton = view.findViewById(R.id.inclinationButton)
         inPocketButton = view.findViewById(R.id.inPocketButton)
 
+        originalButtonTexts[magnitudeButton] = magnitudeButton.text.toString()
+        originalButtonTexts[northButton] = northButton.text.toString()
+        originalButtonTexts[orientationButton] = orientationButton.text.toString()
+        originalButtonTexts[inclinationButton] = inclinationButton.text.toString()
+        originalButtonTexts[inPocketButton] = inPocketButton.text.toString()
+
         wot = WoTClientHolder.wot!!
 
-        // Crea il TextView per lo stato della magnitudine
         magnitudeStatusText = TextView(requireContext()).apply {
             text = "Magnitudine: Non calcolata"
             textSize = 18f
@@ -123,7 +152,7 @@ class SensorActionsFragment : Fragment() {
         connectionStatus.text = "Connessione in corso..."
         progressBar.visibility = View.VISIBLE
 
-        // Aggiungi il TextView della magnitudine al container
+        // Aggiungi i TextView al container
         actionsContainer.removeAllViews()
         actionsContainer.addView(magnitudeStatusText)
         actionsContainer.addView(northStatusText)
@@ -131,17 +160,107 @@ class SensorActionsFragment : Fragment() {
         actionsContainer.addView(inclinationStatusText)
         actionsContainer.addView(inPocketStatusText)
 
-        // Inizialmente disabilita il pulsante finché non è connesso
-        magnitudeButton.isEnabled = false
-        northButton.isEnabled = false
-        orientationButton.isEnabled = false
-        inclinationButton.isEnabled = false
-        inPocketButton.isEnabled = false
+        // Aggiorna gli stati dei bottoni in base alle preferenze
+        updateButtonStates()
+    }
 
-        val buttons = listOf(northButton, orientationButton, inclinationButton, inPocketButton)
-        buttons.forEach {
-            it.alpha = 0.5f
+    private fun updateButtonStates() {
+        val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        val sensorManager = requireContext().getSystemService(Context.SENSOR_SERVICE) as SensorManager
+
+        // Mappa i bottoni ai tipi di sensori richiesti e ai messaggi per bottoni disabilitati
+        val buttonConfig = mapOf(
+            magnitudeButton to ButtonConfig(
+                requiredSensorTypes = listOf(Sensor.TYPE_ACCELEROMETER),
+                disabledMessage = "Calcola magnitudine (Attiva sensore)"
+            ),
+            northButton to ButtonConfig(
+                requiredSensorTypes = listOf(Sensor.TYPE_MAGNETIC_FIELD),
+                disabledMessage = "Calcola direzione nord (Attiva sensore)"
+            ),
+            orientationButton to ButtonConfig(
+                requiredSensorTypes = listOf(Sensor.TYPE_ACCELEROMETER, Sensor.TYPE_MAGNETIC_FIELD),
+                disabledMessage = "Calcola orientamento (Attiva sensori)"
+            ),
+            inclinationButton to ButtonConfig(
+                requiredSensorTypes = listOf(Sensor.TYPE_ACCELEROMETER, Sensor.TYPE_MAGNETIC_FIELD),
+                disabledMessage = "Calcola inclinazione (Attiva sensori)"
+            ),
+            inPocketButton to ButtonConfig(
+                requiredSensorTypes = listOf(Sensor.TYPE_PROXIMITY, Sensor.TYPE_LIGHT),
+                disabledMessage = "Verifica in tasca (Attiva sensori)"
+            )
+        )
+
+        buttonConfig.forEach { (button, config) ->
+            val isEnabled = when (config.requiredSensorTypes.size) {
+                1 -> {
+                    isSensorEnabled(sensorManager, config.requiredSensorTypes.first(), sharedPrefs)
+                }
+                else -> {
+                    config.requiredSensorTypes.all { sensorType ->
+                        isSensorEnabled(sensorManager, sensorType, sharedPrefs)
+                    }
+                }
+            }
+
+            button.isEnabled = isEnabled
+            button.alpha = if (isEnabled) 1.0f else 0.5f
+
+            // Aggiorna il testo del bottone
+            button.text = if (isEnabled) {
+                originalButtonTexts[button] ?: button.text.toString()
+            } else {
+                config.disabledMessage
+            }
         }
+    }
+
+    private data class ButtonConfig(
+        val requiredSensorTypes: List<Int>,
+        val disabledMessage: String
+    )
+
+    private fun filterByNonWakeupSensors(sensors: List<Sensor>): List<Sensor> {
+        val sensorsByType = sensors.groupBy { it.type }
+
+        return sensorsByType.values.mapNotNull { sensorGroup ->
+            when {
+                sensorGroup.size == 1 -> sensorGroup.first() // Solo una versione disponibile
+                sensorGroup.size > 1 -> {
+                    // Cerca prima la versione non-wakeup
+                    val nonWakeup = sensorGroup.find { !it.isWakeUpSensor }
+                    nonWakeup ?: sensorGroup.first() // Se non trova non-wakeup, prende il primo
+                }
+                else -> null
+            }
+        }
+    }
+
+    private fun isSensorEnabled(sensorManager: SensorManager, sensorType: Int, sharedPrefs: android.content.SharedPreferences): Boolean {
+        val allSensors = sensorManager.getSensorList(sensorType)
+        val filteredSensors = filterByNonWakeupSensors(allSensors)
+
+        Log.d("SENSOR_CHECK", "Checking sensor type $sensorType, found ${allSensors.size} total sensors, ${filteredSensors.size} after filtering")
+
+        val result = filteredSensors.any { sensor ->
+            val key = "share_sensor_${sensor.name}"
+            val isEnabled = sharedPrefs.getBoolean(key, false)
+            Log.d("SENSOR_CHECK", "Sensore filtrato ${sensor.name} (tipo $sensorType, key=$key): $isEnabled")
+            isEnabled
+        }
+
+        Log.d("SENSOR_CHECK", "Final result for sensor type $sensorType: $result")
+        return result
+    }
+
+    private fun showSensorNotEnabledToast(sensorNames: List<String>) {
+        val message = if (sensorNames.size == 1) {
+            "Attiva il sensore ${sensorNames.first()} per utilizzare questa funzione"
+        } else {
+            "Attiva almeno uno dei sensori: ${sensorNames.joinToString(", ")} per utilizzare questa funzione"
+        }
+        Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
     }
 
     private fun setupEventListeners() {
@@ -149,11 +268,45 @@ class SensorActionsFragment : Fragment() {
             refreshConnection()
         }
 
-        magnitudeButton.setOnClickListener { getMagnitude() }
-        northButton.setOnClickListener { getNorthDirection() }
-        orientationButton.setOnClickListener { getOrientation() }
-        inclinationButton.setOnClickListener { getInclination() }
-        inPocketButton.setOnClickListener { checkInPocket() }
+        magnitudeButton.setOnClickListener {
+            if (magnitudeButton.isEnabled) {
+                getMagnitude()
+            } else {
+                showSensorNotEnabledToast(listOf("Accelerometro"))
+            }
+        }
+
+        northButton.setOnClickListener {
+            if (northButton.isEnabled) {
+                getNorthDirection()
+            } else {
+                showSensorNotEnabledToast(listOf("Magnetometro"))
+            }
+        }
+
+        orientationButton.setOnClickListener {
+            if (orientationButton.isEnabled) {
+                getOrientation()
+            } else {
+                showSensorNotEnabledToast(listOf("Accelerometro", "Magnetometro"))
+            }
+        }
+
+        inclinationButton.setOnClickListener {
+            if (inclinationButton.isEnabled) {
+                getInclination()
+            } else {
+                showSensorNotEnabledToast(listOf("Accelerometro", "Magnetometro"))
+            }
+        }
+
+        inPocketButton.setOnClickListener {
+            if (inPocketButton.isEnabled) {
+                checkInPocket()
+            } else {
+                showSensorNotEnabledToast(listOf("Sensore di prossimità", "Sensore di luminosità"))
+            }
+        }
     }
 
     private fun refreshConnection() {
@@ -177,8 +330,14 @@ class SensorActionsFragment : Fragment() {
                     connectionStatus.text = "✗ Server non disponibile dopo il timeout!"
                     connectionStatus.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
                     progressBar.visibility = View.GONE
-                    magnitudeButton.isEnabled = false
-                    magnitudeButton.alpha = 0.5f
+
+                    // Disabilita tutti i bottoni quando non connesso
+                    val allButtons = listOf(magnitudeButton, northButton, orientationButton, inclinationButton, inPocketButton)
+                    allButtons.forEach {
+                        it.isEnabled = false
+                        it.alpha = 0.5f
+                    }
+
                     Toast.makeText(requireContext(), "Server non disponibile", Toast.LENGTH_LONG).show()
                 }
                 Log.e("SENSOR", "Server non disponibile dopo timeout")
@@ -206,11 +365,8 @@ class SensorActionsFragment : Fragment() {
                 connectionStatus.text = "✓ Connesso al dispositivo"
                 connectionStatus.setTextColor(resources.getColor(android.R.color.holo_green_dark, null))
 
-                val allButtons = listOf(magnitudeButton, northButton, orientationButton, inclinationButton, inPocketButton)
-                allButtons.forEach {
-                    it.isEnabled = true
-                    it.alpha = 1.0f
-                }
+                // Aggiorna gli stati dei bottoni dopo la connessione
+                updateButtonStates()
             }
 
             Log.d("SENSOR", "Connesso a Smartphone Thing")
@@ -221,8 +377,12 @@ class SensorActionsFragment : Fragment() {
                 connectionStatus.text = "✗ Errore di connessione: ${e.message}"
                 connectionStatus.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
 
-                magnitudeButton.isEnabled = false
-                magnitudeButton.alpha = 0.5f
+                // Disabilita tutti i bottoni in caso di errore
+                val allButtons = listOf(magnitudeButton, northButton, orientationButton, inclinationButton, inPocketButton)
+                allButtons.forEach {
+                    it.isEnabled = false
+                    it.alpha = 0.5f
+                }
 
                 Toast.makeText(requireContext(), "Impossibile connettersi al dispositivo", Toast.LENGTH_LONG).show()
             }
@@ -261,9 +421,6 @@ class SensorActionsFragment : Fragment() {
     }
 
     private fun getMagnitude() {
-        // Disabilita temporaneamente il pulsante per evitare click multipli
-        magnitudeButton.isEnabled = false
-        magnitudeButton.alpha = 0.5f
 
         // Mostra stato di calcolo
         magnitudeStatusText.text = "Magnitudine: Calcolo in corso..."
@@ -296,9 +453,8 @@ class SensorActionsFragment : Fragment() {
                     Log.w("SENSOR", "Risultato nullo dall'azione getMagnitude")
                 }
 
-                // Riabilita il pulsante
-                magnitudeButton.isEnabled = true
-                magnitudeButton.alpha = 1.0f
+                // Riabilita il pulsante solo se il sensore è ancora abilitato
+                updateButtonStates()
             }
 
             Log.d("SENSOR", "getMagnitude invocata con successo!")
@@ -308,8 +464,7 @@ class SensorActionsFragment : Fragment() {
                 magnitudeStatusText.text = "Magnitudine: Errore di comunicazione"
                 magnitudeStatusText.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
 
-                magnitudeButton.isEnabled = true
-                magnitudeButton.alpha = 1.0f
+                updateButtonStates()
 
                 Toast.makeText(requireContext(), "Errore durante il calcolo della magnitudine", Toast.LENGTH_LONG).show()
             }
@@ -318,8 +473,6 @@ class SensorActionsFragment : Fragment() {
     }
 
     private fun getNorthDirection() {
-        northButton.isEnabled = false
-        northButton.alpha = 0.5f
         northStatusText.text = "Direzione Nord: Calcolo in corso..."
         northStatusText.setTextColor(resources.getColor(android.R.color.holo_blue_dark, null))
 
@@ -343,15 +496,13 @@ class SensorActionsFragment : Fragment() {
                     northStatusText.text = "Direzione Nord: Risposta non valida"
                     northStatusText.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
                 }
-                northButton.isEnabled = true
-                northButton.alpha = 1.0f
+                updateButtonStates()
             }
         } catch (e: Exception) {
             withContext(Main) {
                 northStatusText.text = "Direzione Nord: Errore di comunicazione"
                 northStatusText.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
-                northButton.isEnabled = true
-                northButton.alpha = 1.0f
+                updateButtonStates()
                 Toast.makeText(requireContext(), "Errore calcolo direzione nord", Toast.LENGTH_LONG).show()
             }
             Log.e("SENSOR", "Errore getNorthDirection: ", e)
@@ -360,8 +511,6 @@ class SensorActionsFragment : Fragment() {
 
     // 1) getOrientation
     private fun getOrientation() {
-        orientationButton.isEnabled = false
-        orientationButton.alpha = 0.5f
         orientationStatusText.text = "Orientamento: Calcolo in corso..."
         orientationStatusText.setTextColor(resources.getColor(android.R.color.holo_blue_dark, null))
 
@@ -388,15 +537,13 @@ class SensorActionsFragment : Fragment() {
                     orientationStatusText.text = "Orientamento: Risposta non valida"
                     orientationStatusText.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
                 }
-                orientationButton.isEnabled = true
-                orientationButton.alpha = 1.0f
+                updateButtonStates()
             }
         } catch (e: Exception) {
             withContext(Main) {
                 orientationStatusText.text = "Orientamento: Errore di comunicazione"
                 orientationStatusText.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
-                orientationButton.isEnabled = true
-                orientationButton.alpha = 1.0f
+                updateButtonStates()
                 Toast.makeText(requireContext(), "Errore calcolo orientamento", Toast.LENGTH_LONG).show()
             }
             Log.e("SENSOR", "Errore getOrientation: ", e)
@@ -405,8 +552,6 @@ class SensorActionsFragment : Fragment() {
 
     // 2) getInclination
     private fun getInclination() {
-        inclinationButton.isEnabled = false
-        inclinationButton.alpha = 0.5f
         inclinationStatusText.text = "Inclinazione: Calcolo in corso..."
         inclinationStatusText.setTextColor(resources.getColor(android.R.color.holo_blue_dark, null))
 
@@ -430,15 +575,13 @@ class SensorActionsFragment : Fragment() {
                     inclinationStatusText.text = "Inclinazione: Risposta non valida"
                     inclinationStatusText.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
                 }
-                inclinationButton.isEnabled = true
-                inclinationButton.alpha = 1.0f
+                updateButtonStates()
             }
         } catch (e: Exception) {
             withContext(Main) {
                 inclinationStatusText.text = "Inclinazione: Errore di comunicazione"
                 inclinationStatusText.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
-                inclinationButton.isEnabled = true
-                inclinationButton.alpha = 1.0f
+                updateButtonStates()
                 Toast.makeText(requireContext(), "Errore calcolo inclinazione", Toast.LENGTH_LONG).show()
             }
             Log.e("SENSOR", "Errore getInclination: ", e)
@@ -447,8 +590,6 @@ class SensorActionsFragment : Fragment() {
 
     // 3) checkInPocket
     private fun checkInPocket() {
-        inPocketButton.isEnabled = false
-        inPocketButton.alpha = 0.5f
         inPocketStatusText.text = "Verifica in tasca: In corso..."
         inPocketStatusText.setTextColor(resources.getColor(android.R.color.holo_blue_dark, null))
 
@@ -472,25 +613,26 @@ class SensorActionsFragment : Fragment() {
                     inPocketStatusText.text = "Verifica in tasca: Risposta non valida"
                     inPocketStatusText.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
                 }
-                inPocketButton.isEnabled = true
-                inPocketButton.alpha = 1.0f
+                updateButtonStates()
             }
         } catch (e: Exception) {
             withContext(Main) {
                 inPocketStatusText.text = "Verifica in tasca: Errore di comunicazione"
                 inPocketStatusText.setTextColor(resources.getColor(android.R.color.holo_red_dark, null))
-                inPocketButton.isEnabled = true
-                inPocketButton.alpha = 1.0f
+                updateButtonStates()
                 Toast.makeText(requireContext(), "Errore verifica tasca", Toast.LENGTH_LONG).show()
             }
             Log.e("SENSOR", "Errore checkInPocket: ", e)
         }
     }
 
-
     override fun onDestroy() {
         super.onDestroy()
-        // Cancella eventuali coroutine in corso
+        try {
+            requireActivity().unregisterReceiver(preferencesReceiver)
+        } catch (e: Exception) {
+            Log.w("SENSOR_ACTIONS", "Errore durante la deregistrazione del receiver: $e")
+        }
         coroutineScope.cancel()
     }
 }

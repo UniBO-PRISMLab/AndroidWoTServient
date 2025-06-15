@@ -52,7 +52,21 @@ class SensorDataFragment : Fragment() {
         }
     }
 
-    // Add this function to match the server's sanitization logic
+    private fun getSensorUnit(sensorType: Int): String {
+        return when (sensorType) {
+            Sensor.TYPE_ACCELEROMETER -> "m/s²"
+            Sensor.TYPE_LIGHT -> "lx"
+            Sensor.TYPE_GYROSCOPE -> "rad/s"
+            Sensor.TYPE_MAGNETIC_FIELD -> "µT"
+            Sensor.TYPE_PRESSURE -> "hPa"
+            Sensor.TYPE_PROXIMITY -> "cm"
+            Sensor.TYPE_AMBIENT_TEMPERATURE -> "°C"
+            Sensor.TYPE_RELATIVE_HUMIDITY -> "%"
+            Sensor.TYPE_GRAVITY -> "m/s²"
+            else -> ""
+        }
+    }
+
     private fun sanitizeSensorName(name: String, type: Int): String {
         val sanitizedName = name.lowercase()
             .replace("\\s+".toRegex(), "-")
@@ -131,6 +145,7 @@ class SensorDataFragment : Fragment() {
 
                 val selectedProperties = mutableListOf<String>()
                 val sensorDisplayNames = mutableMapOf<String, String>()
+                val sensorUnits = mutableMapOf<String, String>()
 
                 for (sensor in filteredSensors) {
                     val key = "share_sensor_${sensor.name}"
@@ -140,6 +155,7 @@ class SensorDataFragment : Fragment() {
                     val sanitized = sanitizeSensorName(sensor.name, sensor.type)
 
                     val friendlyName = getFriendlyName(sensor)
+                    val unit = getSensorUnit(sensor.type)
                     val sensorType = sensor.type
                     val numAxes = when (sensorType) {
                         Sensor.TYPE_ACCELEROMETER, Sensor.TYPE_GYROSCOPE,
@@ -150,12 +166,14 @@ class SensorDataFragment : Fragment() {
                     if (numAxes == 1) {
                         selectedProperties.add(sanitized)
                         sensorDisplayNames[sanitized] = friendlyName
+                        sensorUnits[sanitized] = unit
                     } else {
                         val axes = listOf("x", "y", "z")
                         for (axis in axes) {
                             val propName = "${sanitized}_$axis"
                             selectedProperties.add(propName)
                             sensorDisplayNames[propName] = "$friendlyName ($axis)"
+                            sensorUnits[propName] = unit
                         }
                     }
                 }
@@ -177,13 +195,14 @@ class SensorDataFragment : Fragment() {
                 withContext(Dispatchers.Main) {
                     val titleView = TextView(requireContext()).apply {
                         textSize = 18f
-                        text = "Smartphone: "
+                        text = "Sensori dello smartphone: "
                         setPadding(8, 24, 8, 8)
                     }
                     sensorDataContainer.addView(titleView)
 
                     for (prop in selectedProperties) {
                         val displayName = sensorDisplayNames[prop] ?: prop
+                        val unit = sensorUnits[prop] ?: ""
                         val valueView = TextView(requireContext()).apply {
                             textSize = 16f
                             text = "$displayName: ..."
@@ -249,10 +268,12 @@ class SensorDataFragment : Fragment() {
                     if (textView != null) {
                         val currentText = textView.text.toString()
                         val displayName = currentText.substringBefore(":")
+                        val unit = findUnitForProperty(prop)
+                        val unitText = if (unit.isNotEmpty()) " $unit" else ""
                         textView.text = if (floatValue == -1f)
                             "$displayName: Sensore non presente"
                         else
-                            "$displayName: $floatValue"
+                            "$displayName: $floatValue$unitText"
                     }
 
                     if (floatValue != -1f) {
@@ -270,6 +291,12 @@ class SensorDataFragment : Fragment() {
             }
             Log.e("SENSOR_DATA", "Error updating sensor values: ", e)
         }
+    }
+
+    private fun findUnitForProperty(propertyName: String): String {
+        val typeStr = propertyName.substringAfterLast("-").substringBefore("_")
+        val sensorType = typeStr.toIntOrNull() ?: return ""
+        return getSensorUnit(sensorType)
     }
 
     private suspend fun waitForServerStart(maxRetries: Int = 10, delayMillis: Long = 500): Boolean {

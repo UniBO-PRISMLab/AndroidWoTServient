@@ -8,6 +8,7 @@ import android.hardware.SensorEventListener
 import android.preference.PreferenceManager
 import android.util.Log
 import android.util.Base64
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.BooleanNode
 import com.fasterxml.jackson.databind.node.JsonNodeFactory
 import com.fasterxml.jackson.databind.node.ObjectNode
@@ -173,11 +174,11 @@ class Server(
                 title = "Get accelerometer magnitude"
                 description = "Calculates the magnitude of acceleration from accelerometer data"
             }
-            action<Unit, Float>("getCompassDirection") {
+            action<Unit, Float>("getNorthDirection") {
                 title = "Get compass direction"
                 description = "Returns the direction (azimuth) in degrees relative to magnetic north"
             }
-            action<Unit, ObjectNode>("getOrientation") {
+            action<Unit, JsonNode>("getOrientation") {
                 title = "Get orientation"
                 description = "Returns the orientation angles: azimuth, pitch and roll"
             }
@@ -185,7 +186,7 @@ class Server(
                 title = "Get inclination"
                 description = "Estimates inclination angle (0° = verticale, 90° = orizzontale)"
             }
-            action<Unit, BooleanNode>("isInPocket") {
+            action<Unit, BooleanNode>("checkInPocket") {
                 title = "Check if in pocket"
                 description = "Returns true if the phone is likely in the user's pocket"
             }
@@ -281,10 +282,10 @@ class Server(
             setActionHandler("getMagnitude") { _: WoTInteractionOutput, _: InteractionOptions? ->
                 ServientStats.logRequest(thingId, "invokeAction", "getMagnitude")
 
-                // Trova se l'accelerometro è abilitato tra i sensori
-                val accelerometerSensor = enabledSensors.find { it.type == Sensor.TYPE_ACCELEROMETER }
-
-                if (accelerometerSensor != null) {
+                if (!isSensorEnabled(Sensor.TYPE_ACCELEROMETER)) {
+                    Log.w("SERVER", "Accelerometro non abilitato - getMagnitude non disponibile")
+                    InteractionInput.Value(jsonNodeFactory.numberNode(-999.0f)) // Valore di errore
+                } else {
                     // Leggi i valori dell'accelerometro
                     val accelerometerValues = readSensorValues(context, Sensor.TYPE_ACCELEROMETER)
 
@@ -301,112 +302,144 @@ class Server(
                         Log.w("SERVER", "Dati accelerometro insufficienti: ${accelerometerValues.size} valori")
                         InteractionInput.Value(jsonNodeFactory.numberNode(-1.0f))
                     }
-                } else {
-                    Log.w("SERVER", "Accelerometro non abilitato per getMagnitude")
-                    InteractionInput.Value(jsonNodeFactory.numberNode(-1.0f))
                 }
             }
-            setActionHandler("getCompassDirection") { _: WoTInteractionOutput, _: InteractionOptions? ->
-                ServientStats.logRequest(thingId, "invokeAction", "getCompassDirection")
+            setActionHandler("getNorthDirection") { _: WoTInteractionOutput, _: InteractionOptions? ->
+                ServientStats.logRequest(thingId, "invokeAction", "getNorthDirection")
 
-                val accel = readSensorValues(context, Sensor.TYPE_ACCELEROMETER)
-                val magnet = readSensorValues(context, Sensor.TYPE_MAGNETIC_FIELD)
+                if (!isSensorEnabled(Sensor.TYPE_ACCELEROMETER) || !isSensorEnabled(Sensor.TYPE_MAGNETIC_FIELD)) {
+                    Log.w("SERVER", "Accelerometro o magnetometro non abilitati - getNorthDirection non disponibile")
+                    InteractionInput.Value(jsonNodeFactory.numberNode(-999.0f)) // Valore di errore
+                } else {
+                    val accel = readSensorValues(context, Sensor.TYPE_ACCELEROMETER)
+                    val magnet = readSensorValues(context, Sensor.TYPE_MAGNETIC_FIELD)
 
-                if (accel.size >= 3 && magnet.size >= 3) {
-                    val gravity = accel.map { it.toFloat() }.toFloatArray()
-                    val geomagnetic = magnet.map { it.toFloat() }.toFloatArray()
+                    if (accel.size >= 3 && magnet.size >= 3) {
+                        val gravity = accel.map { it.toFloat() }.toFloatArray()
+                        val geomagnetic = magnet.map { it.toFloat() }.toFloatArray()
 
-                    val R = FloatArray(9)
-                    val orientation = FloatArray(3)
+                        val R = FloatArray(9)
+                        val orientation = FloatArray(3)
 
-                    if (SensorManager.getRotationMatrix(R, null, gravity, geomagnetic)) {
-                        SensorManager.getOrientation(R, orientation)
-                        val azimuthRad = orientation[0]
-                        val azimuthDeg = Math.toDegrees(azimuthRad.toDouble()).toFloat()
-                        val direction = (azimuthDeg + 360f) % 360f
+                        if (SensorManager.getRotationMatrix(R, null, gravity, geomagnetic)) {
+                            SensorManager.getOrientation(R, orientation)
+                            val azimuthRad = orientation[0]
+                            val azimuthDeg = Math.toDegrees(azimuthRad.toDouble()).toFloat()
+                            val direction = (azimuthDeg + 360f) % 360f
 
-                        Log.d("SERVER", "Direzione nord: $direction°")
-                        InteractionInput.Value(jsonNodeFactory.numberNode(direction))
+                            Log.d("SERVER", "Direzione nord: $direction°")
+                            InteractionInput.Value(jsonNodeFactory.numberNode(direction))
+                        } else {
+                            Log.w("SERVER", "Impossibile calcolare la matrice di rotazione")
+                            InteractionInput.Value(jsonNodeFactory.numberNode(-1.0f))
+                        }
                     } else {
-                        Log.w("SERVER", "Impossibile calcolare la matrice di rotazione")
+                        Log.w("SERVER", "Dati accelerometro o magnetometro insufficienti")
                         InteractionInput.Value(jsonNodeFactory.numberNode(-1.0f))
                     }
-                } else {
-                    Log.w("SERVER", "Dati accelerometro o magnetometro insufficienti")
-                    InteractionInput.Value(jsonNodeFactory.numberNode(-1.0f))
                 }
             }
             setActionHandler("getOrientation") { _: WoTInteractionOutput, _: InteractionOptions? ->
                 ServientStats.logRequest(thingId, "invokeAction", "getOrientation")
 
-                val accel = readSensorValues(context, Sensor.TYPE_ACCELEROMETER)
-                val magnet = readSensorValues(context, Sensor.TYPE_MAGNETIC_FIELD)
-
-                if (accel.size >= 3 && magnet.size >= 3) {
-                    val gravity = accel.map { it.toFloat() }.toFloatArray()
-                    val geomagnetic = magnet.map { it.toFloat() }.toFloatArray()
-
-                    val R = FloatArray(9)
-                    val orientation = FloatArray(3)
-
-                    if (SensorManager.getRotationMatrix(R, null, gravity, geomagnetic)) {
-                        SensorManager.getOrientation(R, orientation)
-
-                        val result = jsonNodeFactory.objectNode()
-                        result.put("azimuth", Math.toDegrees(orientation[0].toDouble()))
-                        result.put("pitch", Math.toDegrees(orientation[1].toDouble()))
-                        result.put("roll", Math.toDegrees(orientation[2].toDouble()))
-
-                        Log.d("SERVER", "Orientamento: $result")
-                        InteractionInput.Value(result)
-                    } else {
-                        Log.w("SERVER", "Impossibile calcolare orientamento")
-                        InteractionInput.Value(jsonNodeFactory.objectNode())
-                    }
+                if (!isSensorEnabled(Sensor.TYPE_ACCELEROMETER) || !isSensorEnabled(Sensor.TYPE_MAGNETIC_FIELD)) {
+                    Log.w("SERVER", "Accelerometro o magnetometro non abilitati - getOrientation non disponibile")
+                    val errorArray = jsonNodeFactory.arrayNode()
+                    errorArray.add(-999.0)
+                    errorArray.add(-999.0)
+                    errorArray.add(-999.0)
+                    InteractionInput.Value(errorArray)
                 } else {
-                    Log.w("SERVER", "Dati sensori insufficienti per orientamento")
-                    InteractionInput.Value(jsonNodeFactory.objectNode())
+                    val accel = readSensorValues(context, Sensor.TYPE_ACCELEROMETER)
+                    val magnet = readSensorValues(context, Sensor.TYPE_MAGNETIC_FIELD)
+
+                    if (accel.size >= 3 && magnet.size >= 3) {
+                        val gravity = accel.map { it.toFloat() }.toFloatArray()
+                        val geomagnetic = magnet.map { it.toFloat() }.toFloatArray()
+
+                        val R = FloatArray(9)
+                        val orientation = FloatArray(3)
+
+                        if (SensorManager.getRotationMatrix(R, null, gravity, geomagnetic)) {
+                            SensorManager.getOrientation(R, orientation)
+
+                            val result = jsonNodeFactory.arrayNode()
+                            result.add(Math.toDegrees(orientation[0].toDouble()))
+                            result.add(Math.toDegrees(orientation[1].toDouble()))
+                            result.add(Math.toDegrees(orientation[2].toDouble()))
+
+                            Log.d("SERVER", "Orientamento: $result")
+                            InteractionInput.Value(result)
+                        } else {
+                            Log.w("SERVER", "Impossibile calcolare orientamento")
+                            val emptyArray = jsonNodeFactory.arrayNode()
+                            emptyArray.add(-1.0)
+                            emptyArray.add(-1.0)
+                            emptyArray.add(-1.0)
+                            InteractionInput.Value(emptyArray)
+                        }
+                    } else {
+                        Log.w("SERVER", "Dati sensori insufficienti per orientamento")
+                        val emptyArray = jsonNodeFactory.arrayNode()
+                        emptyArray.add(-1.0)
+                        emptyArray.add(-1.0)
+                        emptyArray.add(-1.0)
+                        InteractionInput.Value(emptyArray)
+                    }
                 }
             }
             setActionHandler("getInclination") { _: WoTInteractionOutput, _: InteractionOptions? ->
                 ServientStats.logRequest(thingId, "invokeAction", "getInclination")
 
-                val values = readSensorValues(context, Sensor.TYPE_GRAVITY)
-
-                if (values.size >= 3) {
-                    val x = values[0]
-                    val y = values[1]
-                    val z = values[2]
-                    val norm = sqrt((x * x + y * y + z * z).toDouble())
-
-                    val inclination = Math.toDegrees(acos(z / norm)).toFloat()
-                    Log.d("SERVER", "Inclinazione stimata: $inclination°")
-                    InteractionInput.Value(jsonNodeFactory.numberNode(inclination))
+                if (!isSensorEnabled(Sensor.TYPE_GRAVITY)) {
+                    Log.w("SERVER", "Sensore gravità non abilitato - getInclination non disponibile")
+                    InteractionInput.Value(jsonNodeFactory.numberNode(-999.0f)) // Valore di errore
                 } else {
-                    Log.w("SERVER", "Dati gravità insufficienti")
-                    InteractionInput.Value(jsonNodeFactory.numberNode(-1.0f))
+                    val values = readSensorValues(context, Sensor.TYPE_GRAVITY)
+
+                    if (values.size >= 3) {
+                        val x = values[0]
+                        val y = values[1]
+                        val z = values[2]
+                        val norm = sqrt((x * x + y * y + z * z).toDouble())
+
+                        val inclination = Math.toDegrees(acos(z / norm)).toFloat()
+                        Log.d("SERVER", "Inclinazione stimata: $inclination°")
+                        InteractionInput.Value(jsonNodeFactory.numberNode(inclination))
+                    } else {
+                        Log.w("SERVER", "Dati gravità insufficienti")
+                        InteractionInput.Value(jsonNodeFactory.numberNode(-1.0f))
+                    }
                 }
             }
-            setActionHandler("isInPocket") { _: WoTInteractionOutput, _: InteractionOptions? ->
-                ServientStats.logRequest(thingId, "invokeAction", "isInPocket")
+            setActionHandler("checkInPocket") { _: WoTInteractionOutput, _: InteractionOptions? ->
+                ServientStats.logRequest(thingId, "invokeAction", "checkInPocket")
 
-                val prox = readSensorValues(context, Sensor.TYPE_PROXIMITY)
-                val light = readSensorValues(context, Sensor.TYPE_LIGHT)
-
-                if (prox.isNotEmpty() && light.isNotEmpty()) {
-                    val proximity = prox[0]
-                    val luminosity = light[0]
-
-                    val proximitySensor = enabledSensors.find { it.type == Sensor.TYPE_PROXIMITY }
-                    val isNear = proximitySensor != null && proximity < proximitySensor.maximumRange
-                    val isDark = luminosity < 10
-
-                    val inPocket = isNear && isDark
-                    Log.d("SERVER", "Telefono in tasca? $inPocket")
-                    InteractionInput.Value(jsonNodeFactory.booleanNode(inPocket))
-                } else {
-                    Log.w("SERVER", "Dati luce o prossimità mancanti")
+                if (!isSensorEnabled(Sensor.TYPE_PROXIMITY) || !isSensorEnabled(Sensor.TYPE_LIGHT)) {
+                    Log.w("SERVER", "Sensore prossimità o luce non abilitati - checkInPocket non disponibile")
                     InteractionInput.Value(jsonNodeFactory.booleanNode(false))
+                } else {
+
+                    val prox = readSensorValues(context, Sensor.TYPE_PROXIMITY)
+                    val light = readSensorValues(context, Sensor.TYPE_LIGHT)
+
+                    if (prox.isNotEmpty() && light.isNotEmpty()) {
+                        val proximity = prox[0]
+                        val luminosity = light[0]
+
+                        val proximitySensor =
+                            enabledSensors.find { it.type == Sensor.TYPE_PROXIMITY }
+                        val isNear =
+                            proximitySensor != null && proximity < proximitySensor.maximumRange
+                        val isDark = luminosity < 10
+
+                        val inPocket = isNear && isDark
+                        Log.d("SERVER", "Telefono in tasca? $inPocket")
+                        InteractionInput.Value(jsonNodeFactory.booleanNode(inPocket))
+                    } else {
+                        Log.w("SERVER", "Dati luce o prossimità mancanti")
+                        InteractionInput.Value(jsonNodeFactory.booleanNode(false))
+                    }
                 }
             }
         }
@@ -419,6 +452,19 @@ class Server(
         }
 
 
+    }
+
+    private fun isSensorEnabled(sensorType: Int): Boolean {
+        val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        val sensor = sensorManager.getDefaultSensor(sensorType)
+
+        return if (sensor != null) {
+            val prefKey = "share_sensor_${sensor.name}"
+            sharedPrefs.getBoolean(prefKey, false)
+        } else {
+            false
+        }
     }
 
     suspend fun updateExposedThings(): List<WoTExposedThing> {
