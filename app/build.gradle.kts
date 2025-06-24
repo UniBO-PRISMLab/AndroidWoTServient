@@ -57,6 +57,7 @@ dependencies {
 
     implementation("org.eclipse.thingweb:kotlin-wot-reflection:0.1.0-SNAPSHOT")
     implementation("org.eclipse.thingweb:kotlin-wot:0.1.0-SNAPSHOT")
+    implementation("org.eclipse.thingweb:kotlin-wot-binding-mqtt:0.1.0-SNAPSHOT")
     implementation("org.eclipse.thingweb:kotlin-wot-binding-http:0.1.0-SNAPSHOT"){
         exclude(group = "io.ktor", module = "ktor-server-metrics-micrometer")
     }

@@ -23,6 +23,9 @@ import androidx.core.content.edit
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.eclipse.thingweb.binding.mqtt.MqttClientConfig
+import org.eclipse.thingweb.binding.mqtt.MqttProtocolClientFactory
+import org.eclipse.thingweb.binding.mqtt.MqttProtocolServer
 
 class WoTService : Service() {
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -117,6 +120,7 @@ class WoTService : Service() {
             Log.d("SERVER", "Avvio Server sulla porta $port")
             Log.d("SERVER", "Usa IP locale: $useLocalIp, Hostname: $actualHostname")
 
+            // HTTP
             val httpServer = if (useLocalIp) {
                 // When using local IP, bind to all interfaces (0.0.0.0)
                 // so the server can accept connections from the local network
@@ -126,9 +130,26 @@ class WoTService : Service() {
                 HttpProtocolServer(bindPort = port, bindHost = "127.0.0.1")
             }
 
+            // MQTT Configuration
+            val enableMqtt = prefs.getBoolean("enable_mqtt", false)
+            val mqttBrokerHost = prefs.getString("mqtt_broker_host", "test.mosquitto.org") ?: "test.mosquitto.org"
+            val mqttBrokerPort = prefs.getString("mqtt_broker_port", "1883")?.toIntOrNull() ?: 1883
+            val mqttClientId = prefs.getString("mqtt_client_id", "wot-client-${System.currentTimeMillis()}")
+            val mqttUsername = prefs.getString("mqtt_username", "")
+            val mqttPassword = prefs.getString("mqtt_password", "")
+
+            //MQTT
+            val mqttConfig = MqttClientConfig(
+                host = mqttBrokerHost,
+                port = mqttBrokerPort,
+                clientId = mqttClientId ?: "wot-client-${System.currentTimeMillis()}"
+            )
+            val mqttServer = MqttProtocolServer(mqttConfig)
+            val mqttClient = MqttProtocolClientFactory(mqttConfig)
+
             servient = Servient(
-                servers = listOf(httpServer),
-                clientFactories = listOf(HttpProtocolClientFactory())
+                servers = listOf(httpServer, mqttServer),
+                clientFactories = listOf(HttpProtocolClientFactory(), mqttClient)
             )
 
             wot = Wot.create(servient!!)

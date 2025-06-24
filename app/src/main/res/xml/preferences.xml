@@ -32,4 +32,65 @@
 
     </PreferenceCategory>
 
+    <!-- Parametri MQTT -->
+    <PreferenceCategory android:title="MQTT">
+        <SwitchPreference
+            android:key="enable_mqtt"
+            android:title="Abilita MQTT"
+            android:summary="Attiva la pubblicazione dei dati su broker MQTT"
+            android:defaultValue="false"
+            android:selectable="true" />
+
+        <EditTextPreference
+            android:key="mqtt_broker_host"
+            android:title="Host Broker MQTT"
+            android:summary="Indirizzo del broker MQTT (es. test.mosquitto.org)"
+            android:defaultValue="test.mosquitto.org"
+            android:dependency="enable_mqtt"
+            android:selectable="false"/>
+
+        <EditTextPreference
+            android:key="mqtt_broker_port"
+            android:title="Porta Broker MQTT"
+            android:inputType="number"
+            android:summary="Porta del broker MQTT (es. 1883)"
+            android:defaultValue="1883"
+            android:dependency="enable_mqtt"
+            android:selectable="false"/>
+
+        <EditTextPreference
+            android:key="mqtt_client_id"
+            android:title="Client ID MQTT"
+            android:summary="Identificativo univoco del client (lascia vuoto per auto-generazione)"
+            android:defaultValue=""
+            android:dependency="enable_mqtt"
+            android:selectable="false"/>
+
+        <EditTextPreference
+            android:key="mqtt_username"
+            android:title="Username MQTT"
+            android:summary="Username per autenticazione (opzionale)"
+            android:defaultValue=""
+            android:dependency="enable_mqtt"
+            android:selectable="false"/>
+
+        <EditTextPreference
+            android:key="mqtt_password"
+            android:title="Password MQTT"
+            android:inputType="textPassword"
+            android:summary="Password per autenticazione (opzionale)"
+            android:defaultValue=""
+            android:dependency="enable_mqtt"
+            android:selectable="false"/>
+
+        <EditTextPreference
+            android:key="mqtt_topic_prefix"
+            android:title="Prefisso Topic MQTT"
+            android:summary="Prefisso per i topic MQTT (es. smartphone)"
+            android:defaultValue="smartphone"
+            android:dependency="enable_mqtt"
+            android:selectable="false"/>
+
+    </PreferenceCategory>
+
 </PreferenceScreen>

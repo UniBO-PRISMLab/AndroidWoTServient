@@ -12,6 +12,12 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.BooleanNode
 import com.fasterxml.jackson.databind.node.JsonNodeFactory
 import com.fasterxml.jackson.databind.node.ObjectNode
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.eclipse.thingweb.Servient
 import org.eclipse.thingweb.Wot
 import org.eclipse.thingweb.reflection.ExposedThingBuilder
@@ -39,6 +45,8 @@ class Server(
 
     private var currentPhotoBase64: String = ""
     private var currentAudioBase64: String = ""
+
+    private var sensorPublisher: SensorPublisher? = null
 
     suspend fun start(): List<WoTExposedThing> {
         // Stop eventuali Thing attivi
@@ -442,6 +450,9 @@ class Server(
             }
         }
 
+        sensorPublisher = SensorPublisher(context, thing, enabledSensors)
+        sensorPublisher?.startPublishing()
+
         try {
             return thing
         } catch (e: Exception) {
@@ -586,7 +597,7 @@ class Server(
         return "$sanitizedName-$type"
     }
 
-    fun readSensorValues(context: Context, sensorType: Int): FloatArray {
+    private fun readSensorValues(context: Context, sensorType: Int): FloatArray {
         val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         val sensor = sensorManager.getDefaultSensor(sensorType) ?: return floatArrayOf()
 
@@ -661,6 +672,9 @@ class Server(
     suspend fun stop() {
         Log.d("SERVER_STOP", "Inizio stop server..")
         try {
+            sensorPublisher?.stopPublishing()
+            sensorPublisher = null
+
             val thingsToRemove = activeThings.keys.toList()
             // Cicla su tutti i Thing esposti e li distrugge nel Servient
             for (thingId in thingsToRemove) {

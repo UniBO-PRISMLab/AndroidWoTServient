@@ -149,10 +149,13 @@ class SensorDataFragment : Fragment() {
 
                 for (sensor in filteredSensors) {
                     val key = "share_sensor_${sensor.name}"
+                    Log.d("SENSOR_DEBUG", "Checking sensor: ${sensor.name}, type: ${sensor.type}, key: $key")
+                    Log.d("SENSOR_DEBUG", "Preference value: ${sharedPrefs.getBoolean(key, false)}")
+
                     if (!sharedPrefs.getBoolean(key, false)) continue
 
-                    // Use the same sanitization logic as the server
                     val sanitized = sanitizeSensorName(sensor.name, sensor.type)
+                    Log.d("SENSOR_DEBUG", "Sanitized name: $sanitized")
 
                     val friendlyName = getFriendlyName(sensor)
                     val unit = getSensorUnit(sensor.type)
