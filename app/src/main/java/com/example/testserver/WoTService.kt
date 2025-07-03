@@ -1,5 +1,7 @@
 package com.example.testserver
 
+import ai.anfc.lmos.wot.binding.ProtocolClientFactory
+import ai.anfc.lmos.wot.binding.ProtocolServer
 import android.app.*
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -104,52 +106,64 @@ class WoTService : Service() {
             }
 
             setServerStarting(true)
-
             stopWoTServerInternal()
+
             val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
+            val enableHttp = prefs.getBoolean("enable_http", true)
+            val enableMqtt = prefs.getBoolean("enable_mqtt", true)
+            val enableWebSocket = prefs.getBoolean("enable_websocket", false)
+
             val port = prefs.getString("server_port", "8080")?.toIntOrNull() ?: 8080
+            val webSocketPort = prefs.getString("websocket_port", "8080")?.toIntOrNull() ?: 8080
             val useLocalIp = prefs.getBoolean("use_local_ip", false)
             val customHostname = prefs.getString("server_hostname", "")
-
             val actualHostname = when {
                 !useLocalIp -> "localhost"
                 !customHostname.isNullOrBlank() -> customHostname
                 else -> getLocalIpAddress() ?: "localhost"
             }
-
             Log.d("SERVER", "Avvio Server sulla porta $port")
             Log.d("SERVER", "Usa IP locale: $useLocalIp, Hostname: $actualHostname")
 
+            // per Servient
+            val servers = mutableListOf<ProtocolServer>()
+            val clientFactories = mutableListOf<ProtocolClientFactory>()
+
             // HTTP
-            val httpServer = if (useLocalIp) {
-                // When using local IP, bind to all interfaces (0.0.0.0)
-                // so the server can accept connections from the local network
-                HttpProtocolServer(bindPort = port, bindHost = "0.0.0.0")
+            if (enableHttp) {
+                val httpServer = if (useLocalIp) {
+                    // When using local IP, bind to all interfaces (0.0.0.0)
+                    // so the server can accept connections from the local network
+                    HttpProtocolServer(bindPort = port, bindHost = "0.0.0.0")
+                } else {
+                    // When using localhost, can bind specifically to localhost
+                    HttpProtocolServer(bindPort = port, bindHost = "127.0.0.1")
+                }
             } else {
-                // When using localhost, can bind specifically to localhost
-                HttpProtocolServer(bindPort = port, bindHost = "127.0.0.1")
+                Log.d("SERVER_DEBUG", "HTTP disabilitato")
             }
 
             // MQTT Configuration
-            val enableMqtt = prefs.getBoolean("enable_mqtt", false)
-            val mqttBrokerHost = prefs.getString("mqtt_broker_host", "test.mosquitto.org") ?: "test.mosquitto.org"
-            val mqttBrokerPort = prefs.getString("mqtt_broker_port", "1883")?.toIntOrNull() ?: 1883
-            val mqttClientId = prefs.getString("mqtt_client_id", "wot-client-${System.currentTimeMillis()}")
-            val mqttUsername = prefs.getString("mqtt_username", "")
-            val mqttPassword = prefs.getString("mqtt_password", "")
-
-            //MQTT
-            val mqttConfig = MqttClientConfig(
-                host = mqttBrokerHost,
-                port = mqttBrokerPort,
-                clientId = mqttClientId ?: "wot-client-${System.currentTimeMillis()}"
-            )
-            val mqttServer = MqttProtocolServer(mqttConfig)
-            val mqttClient = MqttProtocolClientFactory(mqttConfig)
+            if (enableMqtt) {
+                val mqttBrokerHost = prefs.getString("mqtt_broker_host", "test.mosquitto.org") ?: "test.mosquitto.org"
+                val mqttBrokerPort = prefs.getString("mqtt_broker_port", "1883")?.toIntOrNull() ?: 1883
+                val mqttClientId = prefs.getString("mqtt_client_id", "wot-client-${System.currentTimeMillis()}")
+                val mqttUsername = prefs.getString("mqtt_username", "")
+                val mqttPassword = prefs.getString("mqtt_password", "")
+                val mqttConfig = MqttClientConfig(
+                    host = mqttBrokerHost,
+                    port = mqttBrokerPort,
+                    clientId = mqttClientId ?: "wot-client-${System.currentTimeMillis()}"
+                )
+                val mqttServer = MqttProtocolServer(mqttConfig)
+                val mqttClient = MqttProtocolClientFactory(mqttConfig)
+            } else {
+                Log.d("SERVER_DEBUG", "MQTT disabilitato")
+            }
 
             servient = Servient(
-                servers = listOf(httpServer, mqttServer),
-                clientFactories = listOf(HttpProtocolClientFactory(), mqttClient)
+                servers = servers,
+                clientFactories = clientFactories
             )
 
             wot = Wot.create(servient!!)

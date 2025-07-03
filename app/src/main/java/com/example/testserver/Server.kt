@@ -450,6 +450,7 @@ class Server(
             }
         }
 
+
         sensorPublisher = SensorPublisher(context, thing, enabledSensors)
         sensorPublisher?.startPublishing()
 
