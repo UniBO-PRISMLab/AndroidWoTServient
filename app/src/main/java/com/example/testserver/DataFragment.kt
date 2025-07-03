@@ -226,7 +226,6 @@ class DataFragment : Fragment() {
         val isStarted = prefs.getBoolean("server_started", false)
         val isStarting = prefs.getBoolean("server_starting", false)
 
-        // Debug: mostra i valori delle SharedPreferences
         println("DataFragment - SharedPrefs: server_started=$isStarted, server_starting=$isStarting")
 
         return when {

@@ -104,7 +104,7 @@
     <PreferenceCategory android:title="WebSocket">
         <SwitchPreference
             android:key="enable_websocket"
-            android:title="Abilita WebSocket"
+            android:title="Abilita WebSocket (solo se HTTP non è attivo)"
             android:summary="Attiva il server WebSocket per comunicazione real-time"
             android:defaultValue="true"
             android:selectable="true" />
