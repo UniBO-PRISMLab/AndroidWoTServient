@@ -28,6 +28,8 @@ import kotlinx.coroutines.sync.withLock
 import org.eclipse.thingweb.binding.mqtt.MqttClientConfig
 import org.eclipse.thingweb.binding.mqtt.MqttProtocolClientFactory
 import org.eclipse.thingweb.binding.mqtt.MqttProtocolServer
+import org.eclipse.thingweb.binding.websocket.WebSocketProtocolClientFactory
+import org.eclipse.thingweb.binding.websocket.WebSocketProtocolServer
 
 class WoTService : Service() {
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -163,6 +165,14 @@ class WoTService : Service() {
                 clientFactories.add(mqttClient)
             } else {
                 Log.d("SERVER_DEBUG", "MQTT disabilitato")
+            }
+
+            if (enableWebSocket) {
+                val webSocketServer = WebSocketProtocolServer()
+                val webSocketClient = WebSocketProtocolClientFactory()
+                servers.add(webSocketServer)
+                clientFactories.add(webSocketClient)
+
             }
 
             servient = Servient(
