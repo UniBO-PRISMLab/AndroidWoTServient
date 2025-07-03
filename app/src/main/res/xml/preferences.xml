@@ -2,6 +2,13 @@
 
     <!-- Parametri servient -->
     <PreferenceCategory android:title="Servient">
+        <SwitchPreference
+            android:key="enable_http"
+            android:title="Abilita HTTP"
+            android:summary="Attiva il server HTTP per REST API"
+            android:defaultValue="true"
+            android:selectable="true" />
+
         <EditTextPreference
             android:key="server_port"
             android:title="Porta HTTP"
@@ -32,6 +39,32 @@
 
     </PreferenceCategory>
 
+    <!-- Parametri WebSocket -->
+    <PreferenceCategory android:title="WebSocket">
+        <SwitchPreference
+            android:key="enable_websocket"
+            android:title="Abilita WebSocket"
+            android:summary="Attiva il server WebSocket per comunicazione real-time"
+            android:defaultValue="true"
+            android:selectable="true" />
+
+        <EditTextPreference
+            android:key="websocket_port"
+            android:title="Porta WebSocket"
+            android:inputType="number"
+            android:summary="Porta per il server WebSocket (es. 8080)"
+            android:defaultValue="8080"
+            android:dependency="enable_websocket"
+            android:selectable="true"/>
+
+        <Preference
+            android:title="ℹ️ Informazioni WebSocket"
+            android:summary="WebSocket permette comunicazione bidirezionale real-time con i client. Usa una porta diversa da HTTP."
+            android:dependency="enable_websocket"
+            android:selectable="false" />
+
+    </PreferenceCategory>
+
     <!-- Parametri MQTT -->
     <PreferenceCategory android:title="MQTT">
         <SwitchPreference
@@ -44,10 +77,10 @@
         <EditTextPreference
             android:key="mqtt_broker_host"
             android:title="Host Broker MQTT"
-            android:summary="Indirizzo del broker MQTT (es. test.mosquitto.org)"
+            android:summary="Indirizzo del broker MQTT (test.mosquitto.org)"
             android:defaultValue="test.mosquitto.org"
             android:dependency="enable_mqtt"
-            android:selectable="false"/>
+            android:selectable="true"/>
 
         <EditTextPreference
             android:key="mqtt_broker_port"
@@ -56,7 +89,7 @@
             android:summary="Porta del broker MQTT (es. 1883)"
             android:defaultValue="1883"
             android:dependency="enable_mqtt"
-            android:selectable="false"/>
+            android:selectable="true"/>
 
         <EditTextPreference
             android:key="mqtt_client_id"
