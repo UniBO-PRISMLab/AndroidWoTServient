@@ -139,6 +139,8 @@ class WoTService : Service() {
                     // When using localhost, can bind specifically to localhost
                     HttpProtocolServer(bindPort = port, bindHost = "127.0.0.1")
                 }
+                servers.add(httpServer)
+                clientFactories.add(HttpProtocolClientFactory())
             } else {
                 Log.d("SERVER_DEBUG", "HTTP disabilitato")
             }
@@ -157,6 +159,8 @@ class WoTService : Service() {
                 )
                 val mqttServer = MqttProtocolServer(mqttConfig)
                 val mqttClient = MqttProtocolClientFactory(mqttConfig)
+                servers.add(mqttServer)
+                clientFactories.add(mqttClient)
             } else {
                 Log.d("SERVER_DEBUG", "MQTT disabilitato")
             }

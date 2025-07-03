@@ -450,9 +450,14 @@ class Server(
             }
         }
 
+        val enableHttp = sharedPrefs.getBoolean("enable_http", true)
+        val enableMqtt = sharedPrefs.getBoolean("enable_mqtt", true)
+        val enableWebSocket = sharedPrefs.getBoolean("enable_websocket", false)
 
-        sensorPublisher = SensorPublisher(context, thing, enabledSensors)
-        sensorPublisher?.startPublishing()
+        if (enableWebSocket || enableMqtt) {
+            sensorPublisher = SensorPublisher(context, thing, enabledSensors)
+            sensorPublisher?.startPublishing()
+        }
 
         try {
             return thing
