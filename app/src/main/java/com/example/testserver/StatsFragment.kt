@@ -151,8 +151,18 @@ class StatsFragment : Fragment() {
             return
         }
 
-        val entries = affordances.map { (affordance, count) ->
-            PieEntry(count.toFloat(), cleanAffordanceName(affordance))
+        val groupedAffordances = groupAndFilterAffordances(affordances)
+        if (groupedAffordances.isEmpty()) {
+            pieChart.data = null
+            pieChart.centerText = "Nessun accesso registrato"
+            pieChart.setEntryLabelColor(Color.DKGRAY)
+            pieChart.setCenterTextSize(14f)
+            pieChart.invalidate()
+            return
+        }
+
+        val entries = groupedAffordances.map { (affordance, count) ->
+            PieEntry(count.toFloat(), affordance)
         }
 
         val dataSet = PieDataSet(entries, "")
@@ -178,9 +188,67 @@ class StatsFragment : Fragment() {
             setCenterTextSize(16f)
             description.isEnabled = false
             legend.isEnabled = false
+            // Solo sopra il 3%
+            setDrawEntryLabels(true)
+            setEntryLabelTextSize(11f)
             if (!hasAnimatedPieChart) {
                 pieChart.animateY(800, Easing.EaseInOutQuad)
                 hasAnimatedPieChart = true
+            }
+        }
+    }
+
+    private fun groupAndFilterAffordances(affordances: Map<String, Int>): Map<String, Int> {
+        val totalRequests = affordances.values.sum()
+        if (totalRequests == 0) return emptyMap()
+
+        // Raggruppa i sensori per tipo base
+        val grouped = mutableMapOf<String, Int>()
+
+        for ((key, count) in affordances) {
+            // Salta elementi con 0 accessi
+            if (count == 0) continue
+
+            val groupKey = getGroupedSensorName(key)
+            grouped[groupKey] = grouped.getOrDefault(groupKey, 0) + count
+        }
+
+        // Filtra elementi che rappresentano meno del 2% del totale
+        val minThreshold = (totalRequests * 0.02).toInt()
+        val filtered = grouped.filterValues { it > minThreshold }
+
+        // Se dopo il filtraggio rimangono meno di 2 elementi, mostra comunque i top 3
+        return if (filtered.size < 2) {
+            grouped.toList()
+                .sortedByDescending { it.second }
+                .take(3)
+                .toMap()
+        } else {
+            filtered
+        }
+    }
+
+    private fun getGroupedSensorName(sensorName: String): String {
+        // Rimuovi suffissi degli assi (x, y, z) e raggruppa per tipo di sensore
+        val cleanName = sensorName.lowercase()
+
+        return when {
+            cleanName.contains("acceleromet") -> "Accelerometro"
+            cleanName.contains("giroscop") -> "Giroscopio"
+            cleanName.contains("magnetomet") -> "Magnetometro"
+            cleanName.contains("gravit") -> "Gravità"
+            cleanName.contains("luminosit") || cleanName.contains("light") -> "Luminosità"
+            cleanName.contains("prossimit") || cleanName.contains("proximity") -> "Prossimità"
+            cleanName.contains("baromet") || cleanName.contains("pressure") -> "Barometro"
+            cleanName.contains("temperatur") || cleanName.contains("temperature") -> "Temperatura"
+            cleanName.contains("umidit") || cleanName.contains("humidity") -> "Umidità"
+            cleanName.contains("microfon") || cleanName.contains("audio") -> "Microfono"
+            cleanName.contains("fotocamer") || cleanName.contains("photo") -> "Fotocamera"
+            else -> {
+                // Per altri sensori, rimuovi solo i suffissi degli assi
+                sensorName.replace(Regex("\\s*\\([XYZ]\\)\\s*$"), "")
+                    .replace(Regex("\\s*[XYZ]$"), "")
+                    .trim()
             }
         }
     }
