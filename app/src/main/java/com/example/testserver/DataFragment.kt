@@ -100,34 +100,45 @@ class DataFragment : Fragment() {
     }
 
     private fun handleMediaButtonClick() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        val enableHttp = prefs.getBoolean("enable_http", true)
         val serverStatus = getServerStatus()
-        when (serverStatus) {
-            ServerStatus.RUNNING -> {
+        when {
+            !enableHttp -> {
+                Toast.makeText(requireContext(), "HTTP deve essere abilitato!", Toast.LENGTH_LONG).show()
+            }
+            serverStatus == ServerStatus.RUNNING -> {
                 val intent = Intent(requireContext(), PicAudioActivity::class.java)
                 startActivity(intent)
             }
-            ServerStatus.STARTING -> {
+            serverStatus == ServerStatus.STARTING -> {
                 Toast.makeText(requireContext(), "Server in avvio, attendere..", Toast.LENGTH_SHORT).show()
             }
-            ServerStatus.STOPPED -> {
+            serverStatus == ServerStatus.STOPPED -> {
                 Toast.makeText(requireContext(), "Avvia il Server!", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
     private fun handleSensorButtonClick() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        val enableHttp = prefs.getBoolean("enable_http", true)
         val serverStatus = getServerStatus()
-        when (serverStatus) {
-            ServerStatus.RUNNING -> {
+
+        when {
+            !enableHttp -> {
+                Toast.makeText(requireContext(), "Abilita HTTP", Toast.LENGTH_SHORT).show()
+            }
+            serverStatus == ServerStatus.RUNNING -> {
                 parentFragmentManager.beginTransaction()
                     .replace(R.id.fragment_container, SensorDataFragment())
                     .addToBackStack(null)
                     .commit()
             }
-            ServerStatus.STARTING -> {
+            serverStatus == ServerStatus.STARTING -> {
                 Toast.makeText(requireContext(), "Server in avvio, attendere..", Toast.LENGTH_SHORT).show()
             }
-            ServerStatus.STOPPED -> {
+            serverStatus == ServerStatus.STOPPED -> {
                 Toast.makeText(requireContext(), "Avvia il Server!", Toast.LENGTH_SHORT).show()
             }
         }
@@ -136,8 +147,10 @@ class DataFragment : Fragment() {
     private fun updateButtonStates() {
         if (!isAdded) return // Controlla se il fragment è ancora attached
 
+        val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        val enableHttp = prefs.getBoolean("enable_http", true)
         val serverStatus = getServerStatus()
-        val isEnabled = serverStatus == ServerStatus.RUNNING
+        val isEnabled = serverStatus == ServerStatus.RUNNING && enableHttp
 
         // Debug: aggiungi un log per vedere cosa succede
         println("DataFragment - Server status: $serverStatus, Buttons enabled: $isEnabled")
@@ -149,16 +162,20 @@ class DataFragment : Fragment() {
         updateButtonAppearance(mediaButton, isEnabled, android.R.color.holo_blue_light)
         updateButtonAppearance(sensorButton, isEnabled, android.R.color.holo_green_light)
 
-        when (serverStatus) {
-            ServerStatus.STARTING -> {
+        when {
+            !enableHttp -> {
+                mediaButton?.text = "📱 Media (HTTP Disabilitato)"
+                sensorButton?.text = "📊 Sensori (HTTP Disabilitato)"
+            }
+            serverStatus == ServerStatus.STARTING -> {
                 mediaButton?.text = "📱 Media (Avvio...)"
                 sensorButton?.text = "📊 Sensori (Avvio...)"
             }
-            ServerStatus.RUNNING -> {
+            serverStatus == ServerStatus.RUNNING -> {
                 mediaButton?.text = "📱 Apri Media (Foto/Audio)"
                 sensorButton?.text = "📊 Visualizza Dati Sensori"
             }
-            ServerStatus.STOPPED -> {
+            serverStatus == ServerStatus.STOPPED -> {
                 mediaButton?.text = "📱 Media (Server Spento)"
                 sensorButton?.text = "📊 Sensori (Server Spento)"
             }

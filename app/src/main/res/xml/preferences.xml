@@ -1,6 +1,6 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Parametri servient -->
+    <!-- Parametri HTTP -->
     <PreferenceCategory android:title="Servient">
         <SwitchPreference
             android:key="enable_http"
@@ -35,32 +35,6 @@
         <Preference
             android:title="⚠️ Non funzionante: problema con la repository kotlin-wot/HttpProtocolServer"
             android:summary="Il supporto a hostname/IP personalizzati non è ancora implementato correttamente"
-            android:selectable="false" />
-
-    </PreferenceCategory>
-
-    <!-- Parametri WebSocket -->
-    <PreferenceCategory android:title="WebSocket">
-        <SwitchPreference
-            android:key="enable_websocket"
-            android:title="Abilita WebSocket"
-            android:summary="Attiva il server WebSocket per comunicazione real-time"
-            android:defaultValue="true"
-            android:selectable="true" />
-
-        <EditTextPreference
-            android:key="websocket_port"
-            android:title="Porta WebSocket"
-            android:inputType="number"
-            android:summary="Porta per il server WebSocket (es. 8080)"
-            android:defaultValue="8080"
-            android:dependency="enable_websocket"
-            android:selectable="true"/>
-
-        <Preference
-            android:title="ℹ️ Informazioni WebSocket"
-            android:summary="WebSocket permette comunicazione bidirezionale real-time con i client. Usa una porta diversa da HTTP."
-            android:dependency="enable_websocket"
             android:selectable="false" />
 
     </PreferenceCategory>
@@ -123,6 +97,32 @@
             android:defaultValue="smartphone"
             android:dependency="enable_mqtt"
             android:selectable="false"/>
+
+    </PreferenceCategory>
+
+    <!-- Parametri WebSocket -->
+    <PreferenceCategory android:title="WebSocket">
+        <SwitchPreference
+            android:key="enable_websocket"
+            android:title="Abilita WebSocket"
+            android:summary="Attiva il server WebSocket per comunicazione real-time"
+            android:defaultValue="true"
+            android:selectable="true" />
+
+        <EditTextPreference
+            android:key="websocket_port"
+            android:title="Porta WebSocket"
+            android:inputType="number"
+            android:summary="Porta per il server WebSocket (es. 8080)"
+            android:defaultValue="8080"
+            android:dependency="enable_websocket"
+            android:selectable="true"/>
+
+        <Preference
+            android:title="ℹ️ Informazioni WebSocket"
+            android:summary="WebSocket permette comunicazione bidirezionale real-time con i client. Usa una porta diversa da HTTP."
+            android:dependency="enable_websocket"
+            android:selectable="false" />
 
     </PreferenceCategory>
 
