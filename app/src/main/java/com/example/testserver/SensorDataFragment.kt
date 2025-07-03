@@ -127,6 +127,11 @@ class SensorDataFragment : Fragment() {
                 val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
                 val sensorManager = requireContext().getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
+                val enableHttp = sharedPrefs.getBoolean("enable_http", true)
+                val enableWebSocket = sharedPrefs.getBoolean("enable_websocket", false)
+
+                val url = "http://localhost:8080/smartphone"
+
                 val allowedSensorTypes = listOf(
                     Sensor.TYPE_ACCELEROMETER,
                     Sensor.TYPE_LIGHT,
@@ -190,7 +195,6 @@ class SensorDataFragment : Fragment() {
                     else -> getLocalIpAddress() ?: "localhost"
                 }
 
-                val url = "http://$actualHostname:$port/smartphone"
                 val client = MultiValueSensorClient(wot, url)
                 client.connect()
                 sensorClient = client
